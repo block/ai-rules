@@ -1,0 +1,84 @@
+name: AI Rules Generate Artificats Template
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to checkout'
+        required: true
+        type: string
+    outputs:
+      version:
+        description: "Version from Cargo.toml"
+        value: ${{ jobs.artifacts.outputs.version }}
+
+defaults:
+  run:
+    working-directory: ai-rules-tool
+
+jobs:
+  artifacts:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Get version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -n1 | cut -d'"' -f2)
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Install cross (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          source bin/activate-hermit
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Clean and add Rust target
+        run: |
+          source bin/activate-hermit
+          cargo clean && rustup target add "${{ matrix.target }}"
+        shell: bash
+
+      - name: Build
+        run: |
+          source bin/activate-hermit
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            cross build --release --target "${{ matrix.target }}"
+          else
+            cargo build --release --target "${{ matrix.target }}"
+          fi
+        shell: bash
+
+      - name: Package
+        env:
+          ARTIFACT_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tar -czf "ai-rules-$ARTIFACT_VERSION-${{ matrix.target }}.tar.gz" \
+            -C "target/${{ matrix.target }}/release" ai-rules
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-rules-${{ steps.version.outputs.version }}-${{ matrix.target }}
+          path: ai-rules-tool/ai-rules-${{ steps.version.outputs.version }}-${{ matrix.target }}.tar.gz

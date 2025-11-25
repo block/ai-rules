@@ -1,0 +1,4 @@
+debug/
+target/
+.hermit/
+.claude/settings.local.json

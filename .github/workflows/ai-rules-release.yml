@@ -1,0 +1,70 @@
+name: AI Rules Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to release (e.g., abc1234)'
+        required: true
+        type: string
+
+jobs:
+  artifacts:
+    uses: ./.github/workflows/ai-rules-artifacts-template.yml
+    with:
+      commit_sha: ${{ github.event.inputs.commit_sha }}
+
+  release:
+    name: Create Release
+    needs: artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ai-rules-*
+
+      - name: Prepare release assets
+        run: |
+          mkdir ai-rules-release-assets
+          find artifacts -name "*.tar.gz" -exec cp {} ai-rules-release-assets/ \;
+
+      - name: Generate checksums
+        run: |
+          cd ai-rules-release-assets
+          for file in *.tar.gz; do
+            sha256sum "$file" > "$file.sha256"
+          done
+          ls -la
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          RELEASE_COMMIT_SHA: ${{ github.event.inputs.commit_sha }}
+        run: |
+          CHANGELOG=$(./ai-rules-tool/scripts/generate-changelog.sh "$RELEASE_COMMIT_SHA")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: ncipollo/release-action@bcfe5470707e8832e12347755757cec0eb3c22af
+        with:
+          tag: ai-rules-${{ needs.artifacts.outputs.version }}
+          name: AI Rules ${{ needs.artifacts.outputs.version }}
+          draft: false
+          prerelease: false
+          artifacts: ai-rules-release-assets/*
+          generateReleaseNotes: false
+          allowUpdates: false
+          body: |
+            ## AI Rules Tool Changes in ${{ needs.artifacts.outputs.version }}
+            
+            ${{ steps.changelog.outputs.changelog }}

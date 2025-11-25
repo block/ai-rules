@@ -1,0 +1,24 @@
+version: 1.0.0
+title: Initalize AI Rules File
+author:
+  contact: block
+description: Initalize AI Rules File
+instructions: |
+  You are a helpful assistant that can initalize AI Rules File for this project with rules and context that coding agents need.
+  Use the instructions in {{recipe_dir}}/init_rule.md to generate the AI Rules File.
+prompt: |
+  Create a new AI Rules File at `ai-rules/{{file_name}}` (create directory if needed)
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+parameters:
+  - key: file_name
+    input_type: string
+    requirement: optional
+    description: the name of the AI Rules md file
+    default: base.md
+settings:
+  temperature: 0.1

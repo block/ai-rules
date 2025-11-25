@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-example@1.0.0"],
+      "env": {
+        "EXAMPLE_API_KEY": "${EXAMPLE_API_KEY}"
+      }
+    }
+  }
+}

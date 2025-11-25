@@ -1,0 +1,9 @@
+{
+  "backgroundAgent": {
+    "copyFiles": ["local.properties", "settings.gradle"]
+  },
+  "customField": "test-value",
+  "nested": {
+    "example": "overlay-config"
+  }
+}

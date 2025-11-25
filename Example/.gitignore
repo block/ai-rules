@@ -1,0 +1,16 @@
+
+# AI Rules - Generated Files
+**/.clinerules/
+**/.cursor/mcp.json
+**/.cursor/rules/
+**/.kilocode/rules/
+**/.mcp.json
+**/.roo/mcp.json
+**/.roo/rules/
+**/AGENTS.md
+**/CLAUDE.md
+**/GEMINI.md
+**/ai-rules/.generated-ai-rules
+**/firebender.json
+!**/ai-rules/AGENTS.md
+# End AI Rules

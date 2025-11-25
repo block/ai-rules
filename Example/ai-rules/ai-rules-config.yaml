@@ -1,0 +1,3 @@
+agents: ["claude", "cursor", "firebender", "goose"]
+gitignore: true
+nested_depth: 2
