@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ai-rules-tool"
+name = "ai-rules"
 version = "1.0.0"
 dependencies = [
  "anyhow",
