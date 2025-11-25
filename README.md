@@ -33,6 +33,28 @@ CLI tool to manage AI rules across different AI coding agents. Standardize and d
 - 🧹 **Easy Cleanup** - Remove generated files when needed
 - 🎯 **Selective Generation** - Generate rules for specific agents only
 
+## Installation
+
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install.sh | bash
+```
+
+Installs to `~/.local/bin/ai-rules`. Verify with `ai-rules --version`.
+
+### Install Specific Version
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install.sh | VERSION=v1.0.0 bash
+```
+
+### Custom Install Directory
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin bash
+
+
 ## Quick Start
 
 1. **Set up your AI rules directory** 

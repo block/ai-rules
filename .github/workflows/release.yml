@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  artifacts:
+    uses: ./.github/workflows/artifacts-template.yml
+    with:
+      git_ref: ${{ github.ref }}
+
+  release:
+    name: Create Release
+    needs: artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ai-rules-*
+          merge-multiple: true
+
+      - name: Create Release
+        uses: ncipollo/release-action@bcfe5470707e8832e12347755757cec0eb3c22af
+        with:
+          artifacts: artifacts/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: true
+          allowUpdates: false
