@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-This is a Rust-based CLI tool called `ai-rules-tool` that manages AI rules across different AI coding agents. The project uses Cargo for dependency management and Hermit for environment tooling.
+This is a Rust-based CLI tool called `ai-rules` that manages AI rules across different AI coding agents. The project uses Cargo for dependency management and Hermit for environment tooling.
 
 ## Project Structure & Module Organization
 

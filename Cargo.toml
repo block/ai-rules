@@ -1,6 +1,6 @@
 [package]
-name = "ai-rules-tool"
-version = "0.0.25"
+name = "ai-rules"
+version = "1.0.0"
 edition = "2021"
 description = "A modular, zero-dependency tool to manage AI rules across different AI coding agents"
 authors = ["Block <ai-oss-tools@block.xyz>"]

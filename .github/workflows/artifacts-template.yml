@@ -3,18 +3,14 @@ name: AI Rules Generate Artificats Template
 on:
   workflow_call:
     inputs:
-      commit_sha:
-        description: 'Commit SHA to checkout'
+      git_ref:
+        description: 'Git reference to checkout (commit SHA, branch, or tag)'
         required: true
         type: string
     outputs:
       version:
         description: "Version from Cargo.toml"
         value: ${{ jobs.artifacts.outputs.version }}
-
-defaults:
-  run:
-    working-directory: ai-rules-tool
 
 jobs:
   artifacts:
@@ -38,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ inputs.git_ref }}
 
       - name: Get version from Cargo.toml
         id: version
@@ -73,12 +69,15 @@ jobs:
         env:
           ARTIFACT_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          tar -czf "ai-rules-$ARTIFACT_VERSION-${{ matrix.target }}.tar.gz" \
+          FILENAME="ai-rules-$ARTIFACT_VERSION-${{ matrix.target }}.tar.gz"
+          tar -czf "$FILENAME" \
             -C "target/${{ matrix.target }}/release" ai-rules
+          sha256sum "$FILENAME" > "$FILENAME.sha256"
+          echo "Artifact created: $FILENAME" and checksum: "$FILENAME.sha256"
         shell: bash
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ai-rules-${{ steps.version.outputs.version }}-${{ matrix.target }}
-          path: ai-rules-tool/ai-rules-${{ steps.version.outputs.version }}-${{ matrix.target }}.tar.gz
+          path: ai-rules-${{ steps.version.outputs.version }}-${{ matrix.target }}.tar.gz*
