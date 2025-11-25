@@ -32,6 +32,5 @@ jobs:
         uses: ncipollo/release-action@bcfe5470707e8832e12347755757cec0eb3c22af
         with:
           artifacts: artifacts/*
-          token: ${{ secrets.GITHUB_TOKEN }}
           generateReleaseNotes: true
           allowUpdates: false
