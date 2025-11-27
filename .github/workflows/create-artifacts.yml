@@ -1,0 +1,15 @@
+name: AI Rules Geneate Artifacts for testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to checkout"
+        required: false
+        type: string
+
+jobs:
+  artifacts:
+    uses: ./.github/workflows/artifacts-template.yml
+    with:
+      commit_sha: ${{ github.event.inputs.commit_sha }}
