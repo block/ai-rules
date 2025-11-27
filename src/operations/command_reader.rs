@@ -1,10 +1,25 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::constants::{AI_RULE_SOURCE_DIR, COMMANDS_DIR, GENERATED_FILE_PREFIX, MD_EXTENSION};
 use crate::utils::file_utils::{
-    calculate_relative_path, create_relative_symlink, find_files_by_extension,
+    calculate_relative_path, create_relative_symlink, ensure_trailing_newline,
+    find_files_by_extension,
 };
+use crate::utils::frontmatter::{parse_frontmatter, ParsedContent};
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CommandFrontMatter {
+    #[serde(default)]
+    #[serde(rename = "allowed-tools")]
+    pub allowed_tools: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -12,6 +27,9 @@ pub struct CommandFile {
     pub name: String,
     pub relative_path: PathBuf,
     pub full_path: PathBuf,
+    pub front_matter: Option<CommandFrontMatter>,
+    pub body: String,
+    pub raw_content: String,
 }
 
 /// Finds all command markdown files in ai-rules/commands/ directory
@@ -29,6 +47,11 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
     for path in command_paths {
         if let Some(file_stem) = path.file_stem() {
             if let Some(name) = file_stem.to_str() {
+                let raw_content = std::fs::read_to_string(&path)
+                    .with_context(|| format!("Failed to read command file: {}", path.display()))?;
+
+                let parsed: ParsedContent<CommandFrontMatter> = parse_frontmatter(&raw_content);
+
                 let relative_path = PathBuf::from(AI_RULE_SOURCE_DIR)
                     .join(COMMANDS_DIR)
                     .join(path.file_name().unwrap());
@@ -37,6 +60,9 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
                     name: name.to_string(),
                     relative_path,
                     full_path: path,
+                    front_matter: parsed.frontmatter,
+                    body: parsed.body,
+                    raw_content: parsed.raw_content,
                 });
             }
         }
@@ -156,6 +182,12 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 #[allow(dead_code)]
 pub fn get_command_gitignore_patterns(target_dir: &str) -> Vec<String> {
     vec![format!("{}/{}*.md", target_dir, GENERATED_FILE_PREFIX)]
+}
+
+/// Returns the body content of a command (without frontmatter) with trailing newline
+#[allow(dead_code)]
+pub fn get_command_body_content(command: &CommandFile) -> String {
+    ensure_trailing_newline(command.body.clone())
 }
 
 #[cfg(test)]
