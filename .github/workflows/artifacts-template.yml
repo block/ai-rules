@@ -1,4 +1,4 @@
-name: AI Rules Generate Artificats Template
+name: Reusable template to Generate Artifacts
 
 on:
   workflow_call:
