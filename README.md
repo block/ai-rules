@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin bash
-
+```
 
 ## Quick Start
 
