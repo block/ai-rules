@@ -5,11 +5,11 @@ on:
     inputs:
       commit_sha:
         description: "Commit SHA to checkout"
-        required: false
+        required: true
         type: string
 
 jobs:
   artifacts:
     uses: ./.github/workflows/artifacts-template.yml
     with:
-      commit_sha: ${{ github.event.inputs.commit_sha }}
+      git_ref: ${{ github.event.inputs.commit_sha }}
