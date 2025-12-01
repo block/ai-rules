@@ -1,6 +1,4 @@
-use crate::agents::mcp_generator::{ExternalMcpGenerator, McpGeneratorTrait};
 use crate::agents::rule_generator::AgentRuleGenerator;
-use crate::constants::CLAUDE_MCP_JSON;
 use crate::models::SourceFile;
 use crate::operations::generate_all_rule_references;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
@@ -63,16 +61,6 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
             Ok(vec![current_dir.join(&self.output_filename)])
         } else {
             Ok(vec![])
-        }
-    }
-
-    fn mcp_generator(&self) -> Option<Box<dyn McpGeneratorTrait>> {
-        if self.name == "claude" {
-            Some(Box::new(ExternalMcpGenerator::new(PathBuf::from(
-                CLAUDE_MCP_JSON,
-            ))))
-        } else {
-            None
         }
     }
 }

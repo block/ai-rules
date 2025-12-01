@@ -1,6 +1,7 @@
 pub mod claude;
 pub mod cursor;
 pub mod firebender;
+pub mod gemini;
 pub mod markdown_based;
 pub mod mcp_generator;
 pub mod registry;
