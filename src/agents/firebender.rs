@@ -7,6 +7,7 @@ use crate::constants::{
 };
 use crate::models::SourceFile;
 use crate::operations::body_generator::generated_body_file_reference_path;
+use crate::operations::find_command_files;
 use crate::operations::mcp_reader::extract_mcp_servers_for_firebender;
 use crate::utils::file_utils::ensure_trailing_newline;
 use anyhow::{Context, Result};
@@ -151,10 +152,28 @@ fn generate_firebender_json_with_overlay(
         }));
     }
 
-    let firebender_config = json!({
+    let mut firebender_config = json!({
         "rules": rules,
         FIREBENDER_USE_CURSOR_RULES_FIELD: false
     });
+
+    // Add commands if present
+    if let Some(dir) = current_dir {
+        if let Ok(command_files) = find_command_files(dir) {
+            if !command_files.is_empty() {
+                let commands: Vec<Value> = command_files
+                    .iter()
+                    .map(|cmd| {
+                        json!({
+                            "name": cmd.name,
+                            "path": cmd.relative_path.display().to_string()
+                        })
+                    })
+                    .collect();
+                firebender_config["commands"] = json!(commands);
+            }
+        }
+    }
 
     finalize_firebender_config(firebender_config, current_dir)
 }
@@ -884,5 +903,102 @@ mod tests {
 
         assert!(json["mcpServers"].is_object());
         assert!(json["mcpServers"]["test-server"].is_object());
+    }
+
+    #[test]
+    fn test_generate_firebender_json_with_commands() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_files = vec![create_standard_test_source_file()];
+
+        // Create commands directory and command files
+        let commands_dir = temp_dir.path().join("ai-rules/commands");
+        std::fs::create_dir_all(&commands_dir).unwrap();
+        create_file(
+            &commands_dir,
+            "commit.md",
+            "# Commit command\n\nCreate a git commit",
+        );
+        create_file(
+            &commands_dir,
+            "review.md",
+            "# Review command\n\nReview the code",
+        );
+
+        let result =
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path())).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+
+        // Verify rules are present
+        let rules = parsed["rules"].as_array().unwrap();
+        assert_eq!(rules.len(), 1);
+
+        // Verify commands array is present
+        let commands = parsed["commands"].as_array().unwrap();
+        assert_eq!(commands.len(), 2);
+
+        // Check first command
+        assert_eq!(commands[0]["name"].as_str().unwrap(), "commit");
+        assert_eq!(
+            commands[0]["path"].as_str().unwrap(),
+            "ai-rules/commands/commit.md"
+        );
+
+        // Check second command
+        assert_eq!(commands[1]["name"].as_str().unwrap(), "review");
+        assert_eq!(
+            commands[1]["path"].as_str().unwrap(),
+            "ai-rules/commands/review.md"
+        );
+    }
+
+    #[test]
+    fn test_generate_firebender_json_without_commands() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_files = vec![create_standard_test_source_file()];
+
+        let result =
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path())).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+
+        // Verify rules are present
+        let rules = parsed["rules"].as_array().unwrap();
+        assert_eq!(rules.len(), 1);
+
+        // Verify commands array is not present when no commands exist
+        assert!(
+            parsed["commands"].is_null() || !parsed.as_object().unwrap().contains_key("commands")
+        );
+    }
+
+    #[test]
+    fn test_generate_firebender_json_with_commands_and_frontmatter() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_files = vec![create_standard_test_source_file()];
+
+        // Create command with frontmatter
+        let commands_dir = temp_dir.path().join("ai-rules/commands");
+        std::fs::create_dir_all(&commands_dir).unwrap();
+        let command_with_frontmatter = r#"---
+description: Create a git commit
+model: claude-3-5-haiku-20241022
+---
+
+# Commit Command
+
+Create a git commit with proper formatting."#;
+        create_file(&commands_dir, "commit.md", command_with_frontmatter);
+
+        let result =
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path())).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+
+        // Verify commands array includes the command
+        let commands = parsed["commands"].as_array().unwrap();
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0]["name"].as_str().unwrap(), "commit");
+        assert_eq!(
+            commands[0]["path"].as_str().unwrap(),
+            "ai-rules/commands/commit.md"
+        );
     }
 }
