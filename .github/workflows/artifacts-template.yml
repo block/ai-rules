@@ -1,4 +1,4 @@
-name: Reusable template to Generate Artifacts
+name: "[Template] Build Artifacts"
 
 on:
   workflow_call:

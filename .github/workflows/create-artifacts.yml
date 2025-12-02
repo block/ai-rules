@@ -1,4 +1,4 @@
-name: AI Rules Geneate Artifacts for testing
+name: "[Artifacts] Generate for Testing"
 
 on:
   workflow_dispatch:
