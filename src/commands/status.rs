@@ -90,6 +90,12 @@ pub fn check_project_status(
                 }
             }
 
+            for agent in &agents {
+                if agent_statuses[agent] && !check_command_files(dir, agent, &registry)? {
+                    agent_statuses.insert(agent.clone(), false);
+                }
+            }
+
             Ok(())
         });
 
@@ -149,6 +155,20 @@ fn check_mcp_files(
         return Ok(true);
     };
     mcp_gen.check_mcp(current_dir)
+}
+
+fn check_command_files(
+    current_dir: &Path,
+    agent_name: &str,
+    registry: &AgentToolRegistry,
+) -> Result<bool> {
+    let Some(tool) = registry.get_tool(agent_name) else {
+        return Ok(true);
+    };
+    let Some(cmd_gen) = tool.command_generator() else {
+        return Ok(true);
+    };
+    cmd_gen.check_commands(current_dir)
 }
 
 fn print_status_results(status: &ProjectStatus) {
