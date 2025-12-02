@@ -135,8 +135,18 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         let source_mcp_content = match read_mcp_config(current_dir)? {
             Some(c) => c,
             None => {
-                // If no source, assume sync
-                return Ok(true);
+                // If no source, check target doesn't have mcpServers
+                if !target_path.exists() {
+                    return Ok(true);
+                }
+                let target_content = fs::read_to_string(&target_path)?;
+                let target_json: Value = serde_json::from_str(&target_content)?;
+                let mcp_servers = target_json.get("mcpServers");
+                let is_empty = match mcp_servers {
+                    None => true,
+                    Some(val) => val.as_object().is_none_or(|o| o.is_empty()),
+                };
+                return Ok(is_empty);
             }
         };
 
@@ -304,5 +314,172 @@ mod tests {
     fn test_gemini_generator_name() {
         let generator = GeminiGenerator;
         assert_eq!(generator.name(), "gemini");
+    }
+
+    #[test]
+    fn test_generate_mcp_preserves_existing_settings() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // Create source MCP config (command field is required)
+        let source_config =
+            r#"{"mcpServers": {"test": {"command": "npx", "args": ["-y", "test"]}}}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", source_config);
+
+        // Create existing target with other settings
+        let existing_target = r#"{
+  "otherSetting": "preserved",
+  "nestedSetting": {
+    "key": "value"
+  }
+}"#;
+        create_file(temp_dir.path(), ".gemini/settings.json", existing_target);
+
+        // Generate MCP
+        let files = generator.generate_mcp(temp_dir.path());
+
+        // Verify the result - get the first (and only) file
+        assert_eq!(files.len(), 1);
+        let content = files.values().next().unwrap();
+        let json: Value = serde_json::from_str(content).unwrap();
+
+        // Other settings should be preserved
+        assert_eq!(json.get("otherSetting").unwrap(), "preserved");
+        assert_eq!(
+            json.get("nestedSetting").unwrap().get("key").unwrap(),
+            "value"
+        );
+        // mcpServers should be added
+        assert!(json.get("mcpServers").is_some());
+    }
+
+    #[test]
+    fn test_generate_mcp_invalid_source_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // Create invalid JSON source
+        create_file(temp_dir.path(), "ai-rules/mcp.json", "{ invalid json }");
+
+        // Should return empty map - read_mcp_config returns Err for invalid JSON,
+        // which is caught by the wildcard pattern and returns empty files
+        let files = generator.generate_mcp(temp_dir.path());
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_clean_mcp_preserves_other_settings() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // Create target with mcpServers and other settings
+        let target_config = r#"{
+  "mcpServers": {
+    "test": {"url": "http://example.com"}
+  },
+  "otherSetting": "preserved",
+  "anotherSetting": 42
+}"#;
+        create_file(temp_dir.path(), ".gemini/settings.json", target_config);
+
+        // Clean MCP
+        generator.clean_mcp(temp_dir.path()).unwrap();
+
+        // Verify the result
+        let target_path = temp_dir.path().join(".gemini/settings.json");
+        let content = fs::read_to_string(&target_path).unwrap();
+        let json: Value = serde_json::from_str(&content).unwrap();
+
+        // mcpServers should be removed
+        assert!(json.get("mcpServers").is_none());
+        // Other settings should be preserved
+        assert_eq!(json.get("otherSetting").unwrap(), "preserved");
+        assert_eq!(json.get("anotherSetting").unwrap(), 42);
+    }
+
+    #[test]
+    fn test_clean_mcp_file_not_exists() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // Should not error when file doesn't exist
+        let result = generator.clean_mcp(temp_dir.path());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_clean_mcp_invalid_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // Create invalid JSON target
+        create_file(temp_dir.path(), ".gemini/settings.json", "{ invalid json }");
+
+        // Should return error for invalid JSON
+        let result = generator.clean_mcp(temp_dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_mcp_no_source_with_existing_target_mcpservers() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // No source config (ai-rules/mcp.json doesn't exist)
+
+        // Target with mcpServers
+        let target_config = r#"{
+  "mcpServers": {
+    "test": {"url": "http://example.com"}
+  }
+}"#;
+        create_file(temp_dir.path(), ".gemini/settings.json", target_config);
+
+        // Should report out of sync (false) because target has mcpServers but no source
+        let result = generator.check_mcp(temp_dir.path()).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_check_mcp_no_source_no_target() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // No source config, no target file
+        // Should report in sync (true)
+        let result = generator.check_mcp(temp_dir.path()).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_check_mcp_no_source_target_without_mcpservers() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // No source config
+
+        // Target exists but has no mcpServers
+        let target_config = r#"{"otherSetting": "value"}"#;
+        create_file(temp_dir.path(), ".gemini/settings.json", target_config);
+
+        // Should report in sync (true) because target has no mcpServers
+        let result = generator.check_mcp(temp_dir.path()).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_check_mcp_no_source_target_with_empty_mcpservers() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = GeminiMcpGenerator;
+
+        // No source config
+
+        // Target exists with empty mcpServers
+        let target_config = r#"{"mcpServers": {}}"#;
+        create_file(temp_dir.path(), ".gemini/settings.json", target_config);
+
+        // Should report in sync (true) because mcpServers is empty
+        let result = generator.check_mcp(temp_dir.path()).unwrap();
+        assert!(result);
     }
 }
