@@ -12,6 +12,14 @@ pub trait McpGeneratorTrait {
     fn check_mcp(&self, current_dir: &Path) -> Result<bool>;
 
     fn mcp_gitignore_patterns(&self) -> Vec<String>;
+
+    fn box_clone(&self) -> Box<dyn McpGeneratorTrait>;
+}
+
+impl Clone for Box<dyn McpGeneratorTrait> {
+    fn clone(&self) -> Box<dyn McpGeneratorTrait> {
+        self.box_clone()
+    }
 }
 
 pub struct ExternalMcpGenerator {
@@ -60,6 +68,12 @@ impl McpGeneratorTrait for ExternalMcpGenerator {
 
     fn mcp_gitignore_patterns(&self) -> Vec<String> {
         vec![self.output_path.display().to_string()]
+    }
+
+    fn box_clone(&self) -> Box<dyn McpGeneratorTrait> {
+        Box::new(Self {
+            output_path: self.output_path.clone(),
+        })
     }
 }
 
