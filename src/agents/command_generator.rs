@@ -11,8 +11,10 @@ pub trait CommandGeneratorTrait {
     fn clean_commands(&self, current_dir: &Path) -> Result<()>;
 
     /// Check if command files are in sync
+    #[allow(dead_code)]
     fn check_commands(&self, current_dir: &Path) -> Result<bool>;
 
     /// Get gitignore patterns for generated commands
+    #[allow(dead_code)]
     fn command_gitignore_patterns(&self) -> Vec<String>;
 }

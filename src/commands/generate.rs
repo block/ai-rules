@@ -85,6 +85,22 @@ fn generate_files(
     }
     write_directory_files(&mcp_files_to_write)?;
 
+    // Generate command files
+    let mut command_files_to_write: HashMap<PathBuf, String> = HashMap::new();
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            if let Some(cmd_gen) = tool.command_generator() {
+                // Generate new command files
+                let cmd_files = cmd_gen.generate_commands(current_dir);
+                for path in cmd_files.keys() {
+                    result.add_file(agent, path.clone());
+                }
+                command_files_to_write.extend(cmd_files);
+            }
+        }
+    }
+    write_directory_files(&command_files_to_write)?;
+
     Ok(())
 }
 
