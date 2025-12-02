@@ -1,3 +1,5 @@
+use crate::agents::command_generator::CommandGeneratorTrait;
+use crate::agents::cursor_command_generator::CursorCommandGenerator;
 use crate::agents::mcp_generator::{ExternalMcpGenerator, McpGeneratorTrait};
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::constants::{AGENTS_MD_FILENAME, GENERATED_FILE_PREFIX, MCP_JSON};
@@ -103,6 +105,10 @@ impl AgentRuleGenerator for CursorGenerator {
         Some(Box::new(ExternalMcpGenerator::new(
             PathBuf::from(".cursor").join(MCP_JSON),
         )))
+    }
+
+    fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
+        Some(Box::new(CursorCommandGenerator))
     }
 }
 
