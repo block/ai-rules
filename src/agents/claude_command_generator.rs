@@ -1,5 +1,5 @@
 use crate::agents::command_generator::CommandGeneratorTrait;
-use crate::constants::{CLAUDE_COMMANDS_DIR, GENERATED_FILE_PREFIX};
+use crate::constants::{CLAUDE_COMMANDS_DIR, GENERATED_COMMAND_SUFFIX};
 use crate::operations::find_command_files;
 use crate::utils::file_utils::ensure_trailing_newline;
 use anyhow::Result;
@@ -25,7 +25,7 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
         let commands_dir = current_dir.join(CLAUDE_COMMANDS_DIR);
 
         for command in command_files {
-            let output_name = format!("{}{}.md", GENERATED_FILE_PREFIX, command.name);
+            let output_name = format!("{}-{}.md", command.name, GENERATED_COMMAND_SUFFIX);
             let output_path = commands_dir.join(&output_name);
 
             // Preserve full content including frontmatter for Claude
@@ -48,7 +48,8 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
 
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
-                    if name_str.starts_with(GENERATED_FILE_PREFIX) {
+                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    if name_str.ends_with(&suffix_pattern) {
                         fs::remove_file(&path)?;
                     }
                 }
@@ -75,7 +76,8 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
             for entry in fs::read_dir(&commands_dir)? {
                 let entry = entry?;
                 if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(GENERATED_FILE_PREFIX) {
+                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    if name.ends_with(&suffix_pattern) {
                         return Ok(false);
                     }
                 }
@@ -100,7 +102,8 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
             let entry = entry?;
             let path = entry.path();
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with(GENERATED_FILE_PREFIX) && !expected_files.contains_key(&path) {
+                let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                if name.ends_with(&suffix_pattern) && !expected_files.contains_key(&path) {
                     return Ok(false);
                 }
             }
@@ -111,8 +114,8 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
 
     fn command_gitignore_patterns(&self) -> Vec<String> {
         vec![format!(
-            "{}/{}*.md",
-            CLAUDE_COMMANDS_DIR, GENERATED_FILE_PREFIX
+            "{}/*-{}.md",
+            CLAUDE_COMMANDS_DIR, GENERATED_COMMAND_SUFFIX
         )]
     }
 }
@@ -150,7 +153,7 @@ mod tests {
         let output_path = temp_dir
             .path()
             .join(CLAUDE_COMMANDS_DIR)
-            .join("ai-rules-generated-test.md");
+            .join("test-ai-rules.md");
         assert!(files.contains_key(&output_path));
 
         // Verify frontmatter is preserved
@@ -167,13 +170,13 @@ mod tests {
         let commands_dir = temp_dir.path().join(CLAUDE_COMMANDS_DIR);
         fs::create_dir_all(&commands_dir).unwrap();
 
-        fs::write(commands_dir.join("ai-rules-generated-test.md"), "generated").unwrap();
+        fs::write(commands_dir.join("test-ai-rules.md"), "generated").unwrap();
         fs::write(commands_dir.join("custom.md"), "user file").unwrap();
 
         let generator = ClaudeCommandGenerator;
         generator.clean_commands(temp_dir.path()).unwrap();
 
-        assert!(!commands_dir.join("ai-rules-generated-test.md").exists());
+        assert!(!commands_dir.join("test-ai-rules.md").exists());
         assert!(commands_dir.join("custom.md").exists());
     }
 
@@ -183,7 +186,7 @@ mod tests {
         let commands_dir = temp_dir.path().join(CLAUDE_COMMANDS_DIR);
         fs::create_dir_all(&commands_dir).unwrap();
 
-        fs::write(commands_dir.join("ai-rules-generated-test.md"), "generated").unwrap();
+        fs::write(commands_dir.join("test-ai-rules.md"), "generated").unwrap();
 
         let generator = ClaudeCommandGenerator;
         generator.clean_commands(temp_dir.path()).unwrap();
@@ -234,11 +237,7 @@ mod tests {
         }
 
         // Add extra generated file
-        fs::write(
-            target_commands_dir.join("ai-rules-generated-extra.md"),
-            "extra",
-        )
-        .unwrap();
+        fs::write(target_commands_dir.join("extra-ai-rules.md"), "extra").unwrap();
 
         // Should detect out of sync
         assert!(!generator.check_commands(temp_dir.path()).unwrap());
@@ -250,6 +249,6 @@ mod tests {
         let patterns = generator.command_gitignore_patterns();
 
         assert_eq!(patterns.len(), 1);
-        assert_eq!(patterns[0], ".claude/commands/ai-rules-generated-*.md");
+        assert_eq!(patterns[0], ".claude/commands/*-ai-rules.md");
     }
 }
