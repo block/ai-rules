@@ -1,5 +1,5 @@
 use crate::agents::command_generator::CommandGeneratorTrait;
-use crate::constants::{CURSOR_COMMANDS_DIR, GENERATED_FILE_PREFIX};
+use crate::constants::{CURSOR_COMMANDS_DIR, GENERATED_COMMAND_SUFFIX};
 use crate::operations::{find_command_files, get_command_body_content};
 use crate::utils::file_utils::check_directory_files_match;
 use anyhow::Result;
@@ -25,7 +25,7 @@ impl CommandGeneratorTrait for CursorCommandGenerator {
         let commands_dir = current_dir.join(CURSOR_COMMANDS_DIR);
 
         for command in command_files {
-            let output_name = format!("{}{}.md", GENERATED_FILE_PREFIX, command.name);
+            let output_name = format!("{}-{}.md", command.name, GENERATED_COMMAND_SUFFIX);
             let output_path = commands_dir.join(&output_name);
 
             // Strip frontmatter for Cursor
@@ -48,7 +48,8 @@ impl CommandGeneratorTrait for CursorCommandGenerator {
 
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
-                    if name_str.starts_with(GENERATED_FILE_PREFIX) {
+                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    if name_str.ends_with(&suffix_pattern) {
                         fs::remove_file(&path)?;
                     }
                 }
@@ -75,7 +76,8 @@ impl CommandGeneratorTrait for CursorCommandGenerator {
             for entry in fs::read_dir(&commands_dir)? {
                 let entry = entry?;
                 if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(GENERATED_FILE_PREFIX) {
+                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    if name.ends_with(&suffix_pattern) {
                         return Ok(false);
                     }
                 }
@@ -84,14 +86,11 @@ impl CommandGeneratorTrait for CursorCommandGenerator {
         }
 
         let expected_files = self.generate_commands(current_dir);
-        check_directory_files_match(&commands_dir, &expected_files, GENERATED_FILE_PREFIX)
+        check_directory_files_match(&commands_dir, &expected_files, GENERATED_COMMAND_SUFFIX)
     }
 
     fn command_gitignore_patterns(&self) -> Vec<String> {
-        vec![format!(
-            "{}/{}*.md",
-            CURSOR_COMMANDS_DIR, GENERATED_FILE_PREFIX
-        )]
+        vec![format!("{}/*-{}.md", CURSOR_COMMANDS_DIR, GENERATED_COMMAND_SUFFIX)]
     }
 }
 
@@ -117,18 +116,14 @@ mod tests {
         let commands_dir = temp_dir.path().join(AI_RULE_SOURCE_DIR).join(COMMANDS_DIR);
         fs::create_dir_all(&commands_dir).unwrap();
 
-        let command_content =
-            "---\nallowed-tools: Bash(git:*)\ndescription: Test command\n---\n\nCommand body";
+        let command_content = "---\nallowed-tools: Bash(git:*)\ndescription: Test command\n---\n\nCommand body";
         fs::write(commands_dir.join("test.md"), command_content).unwrap();
 
         let generator = CursorCommandGenerator;
         let files = generator.generate_commands(temp_dir.path());
 
         assert_eq!(files.len(), 1);
-        let output_path = temp_dir
-            .path()
-            .join(CURSOR_COMMANDS_DIR)
-            .join("ai-rules-generated-test.md");
+        let output_path = temp_dir.path().join(CURSOR_COMMANDS_DIR).join("test-ai-rules.md");
         assert!(files.contains_key(&output_path));
 
         // Verify frontmatter is stripped
@@ -146,13 +141,13 @@ mod tests {
         let commands_dir = temp_dir.path().join(CURSOR_COMMANDS_DIR);
         fs::create_dir_all(&commands_dir).unwrap();
 
-        fs::write(commands_dir.join("ai-rules-generated-test.md"), "generated").unwrap();
+        fs::write(commands_dir.join("test-ai-rules.md"), "generated").unwrap();
         fs::write(commands_dir.join("custom.md"), "user file").unwrap();
 
         let generator = CursorCommandGenerator;
         generator.clean_commands(temp_dir.path()).unwrap();
 
-        assert!(!commands_dir.join("ai-rules-generated-test.md").exists());
+        assert!(!commands_dir.join("test-ai-rules.md").exists());
         assert!(commands_dir.join("custom.md").exists());
     }
 
@@ -162,7 +157,7 @@ mod tests {
         let commands_dir = temp_dir.path().join(CURSOR_COMMANDS_DIR);
         fs::create_dir_all(&commands_dir).unwrap();
 
-        fs::write(commands_dir.join("ai-rules-generated-test.md"), "generated").unwrap();
+        fs::write(commands_dir.join("test-ai-rules.md"), "generated").unwrap();
 
         let generator = CursorCommandGenerator;
         generator.clean_commands(temp_dir.path()).unwrap();
@@ -213,11 +208,7 @@ mod tests {
         }
 
         // Add extra generated file
-        fs::write(
-            target_commands_dir.join("ai-rules-generated-extra.md"),
-            "extra",
-        )
-        .unwrap();
+        fs::write(target_commands_dir.join("extra-ai-rules.md"), "extra").unwrap();
 
         // Should detect out of sync
         assert!(!generator.check_commands(temp_dir.path()).unwrap());
@@ -229,6 +220,6 @@ mod tests {
         let patterns = generator.command_gitignore_patterns();
 
         assert_eq!(patterns.len(), 1);
-        assert_eq!(patterns[0], ".cursor/commands/ai-rules-generated-*.md");
+        assert_eq!(patterns[0], ".cursor/commands/*-ai-rules.md");
     }
 }
