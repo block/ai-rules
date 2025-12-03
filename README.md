@@ -295,7 +295,7 @@ For symlink mode, use a single `AGENTS.md` file with pure markdown (no YAML fron
 | **Copilot** | `AGENTS.md` | ✅ `AGENTS.md` → `ai-rules/AGENTS.md` | ❌ | |
 | **Cursor** | `.cursor/rules/*.mdc` | ✅ `AGENTS.md` → `ai-rules/AGENTS.md` | ✅ `.cursor/mcp.json` | Symlink mode: only project root level |
 | **Firebender** | `firebender.json` | ✅ `firebender.json` (references `ai-rules/AGENTS.md`) | ✅ Embedded in `firebender.json` | Supports overlay files |
-| **Gemini** | `GEMINI.md` | ✅ `GEMINI.md` → `ai-rules/AGENTS.md` | ❌ | |
+| **Gemini** | `GEMINI.md` | ✅ `GEMINI.md` → `ai-rules/AGENTS.md` | ✅ Embedded in `.gemini/settings.json` | |
 | **Goose** | `AGENTS.md` | ✅ `AGENTS.md` → `ai-rules/AGENTS.md` | ❌ | |
 | **Kilocode** | `.kilocode/rules/*.md` | ✅ `.kilocode/rules/AGENTS.md` → `../../ai-rules/AGENTS.md` | ❌ | |
 | **Roo** | `.roo/rules/*.md` | ✅ `.roo/rules/AGENTS.md` → `../../ai-rules/AGENTS.md` | ✅ `.roo/mcp.json` | |
