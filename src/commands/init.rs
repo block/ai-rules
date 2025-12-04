@@ -68,9 +68,11 @@ pub fn run_init(current_dir: &Path, init_args: InitArgs) -> Result<()> {
         return Ok(());
     }
 
-    if !prompt_yes_no(
-        "ai-rules/ already has rules. Run Goose to initialize another rule file? [y/N]: ",
-    )? {
+    if !init_args.force
+        && !prompt_yes_no(
+            "ai-rules/ already has rules. Run Goose to initialize another rule file? [y/N]: ",
+        )?
+    {
         return Ok(());
     }
 
@@ -182,6 +184,11 @@ fn initialize_rules_with_recipe(
 
     if matches!(&recipe_source, RecipeSource::Default) {
         params.insert("file_name".to_string(), rule_filename.to_string());
+    }
+
+    // Pass force flag to custom recipes only when force is true
+    if init_args.force && matches!(&recipe_source, RecipeSource::Custom(_)) {
+        params.insert("force".to_string(), "true".to_string());
     }
 
     let run_recipe_config = RunRecipeConfig {

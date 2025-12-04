@@ -118,6 +118,10 @@ Initialize AI rules in the current directory. Uses Goose recipes to generate con
 - **Built-in recipe** ([Recipe](src/templates/init_default_recipe.yaml)): Generate a single rule file based on your project context
 - **Fallback**: Creates a basic example template if Goose is not available
 
+**Options:**
+- `--params <key=value>` - Pass custom parameters to recipes (can be specified multiple times)
+- `--force` - Skip confirmation prompts and assume yes. Automatically bypasses the "Run Goose to initialize another rule file?" prompt when rules already exist. For custom recipes, passes `force=true` as a parameter.
+
 **Examples:**
 ```bash
 # Basic initialization
@@ -125,6 +129,9 @@ ai-rules init
 
 # Pass parameters to custom recipes (e.g., service name, team ownership)
 ai-rules init --params service=payments --params owner=checkout
+
+# Force initialization without confirmation prompts
+ai-rules init --force
 ```
 ### `ai-rules generate [--agents <agent1,agent2>] [--gitignore] [--nested-depth <depth>]`
 Generate rules for AI coding agents from your `ai-rules/*.md` source files.
