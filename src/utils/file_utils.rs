@@ -28,6 +28,10 @@ pub fn find_files_by_extension(dir: &Path, extension: &str) -> Result<Vec<PathBu
             files.push(path);
         }
     }
+
+    // Sort files alphabetically for deterministic output across filesystems
+    files.sort();
+
     Ok(files)
 }
 
@@ -122,6 +126,8 @@ where
         return Ok(());
     }
 
+    // Collect and sort directories for deterministic traversal order
+    let mut dirs = Vec::new();
     for entry in fs::read_dir(current_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -133,9 +139,16 @@ where
                 .unwrap_or("");
 
             if should_traverse_directory(dir_name) {
-                traverse_project_directories(&path, max_depth, current_depth + 1, callback)?;
+                dirs.push(path);
             }
         }
+    }
+
+    // Sort directories alphabetically for consistent order
+    dirs.sort();
+
+    for dir in dirs {
+        traverse_project_directories(&dir, max_depth, current_depth + 1, callback)?;
     }
 
     Ok(())
@@ -222,6 +235,61 @@ mod tests {
 
         let nonexistent_files = find_files_by_extension(temp_path, "xyz").unwrap();
         assert_eq!(nonexistent_files.len(), 0);
+    }
+
+    #[test]
+    fn test_find_files_by_extension_returns_sorted_results() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // Create files in a deliberately non-alphabetical order to test sorting
+        // These names are chosen to expose different filesystem ordering behaviors:
+        // - Mixed case (README vs run-tests)
+        // - Hyphens vs underscores
+        // - Numbers
+        fs::write(temp_path.join("run-tests-after-all-changes.md"), "content").unwrap();
+        fs::write(temp_path.join("README.md"), "content").unwrap();
+        fs::write(temp_path.join("check-the-diff.md"), "content").unwrap();
+        fs::write(
+            temp_path.join("read-the-inventory-basics-doc.md"),
+            "content",
+        )
+        .unwrap();
+        fs::write(temp_path.join("zebra.md"), "content").unwrap();
+        fs::write(temp_path.join("apple.md"), "content").unwrap();
+        fs::write(temp_path.join("01-first.md"), "content").unwrap();
+        fs::write(temp_path.join("10-tenth.md"), "content").unwrap();
+        fs::write(temp_path.join("02-second.md"), "content").unwrap();
+
+        let md_files = find_files_by_extension(temp_path, "md").unwrap();
+        assert_eq!(md_files.len(), 9);
+
+        // Extract just the filenames for easier assertion
+        let filenames: Vec<String> = md_files
+            .iter()
+            .filter_map(|p| p.file_name())
+            .filter_map(|n| n.to_str())
+            .map(|s| s.to_string())
+            .collect();
+
+        // Verify files are in alphabetical order
+        let mut expected = filenames.clone();
+        expected.sort();
+        assert_eq!(
+            filenames, expected,
+            "Files should be returned in alphabetical order"
+        );
+
+        // Verify the specific order matches what we expect
+        assert_eq!(filenames[0], "01-first.md");
+        assert_eq!(filenames[1], "02-second.md");
+        assert_eq!(filenames[2], "10-tenth.md");
+        assert_eq!(filenames[3], "README.md");
+        assert_eq!(filenames[4], "apple.md");
+        assert_eq!(filenames[5], "check-the-diff.md");
+        assert_eq!(filenames[6], "read-the-inventory-basics-doc.md");
+        assert_eq!(filenames[7], "run-tests-after-all-changes.md");
+        assert_eq!(filenames[8], "zebra.md");
     }
 
     #[test]
