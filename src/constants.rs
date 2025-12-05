@@ -6,6 +6,7 @@ pub const AGENTS_MD_FILENAME: &str = "AGENTS.md";
 pub const AI_RULE_CONFIG_FILENAME: &str = "ai-rules-config.yaml";
 pub const GENERATED_FILE_PREFIX: &str = "ai-rules-generated-";
 pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
+pub const GENERATED_COMMANDS_SUBDIR: &str = "ai-rules";
 
 pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
 pub const SKILL_FILENAME: &str = "SKILL.md";
