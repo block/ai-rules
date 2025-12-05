@@ -2,6 +2,7 @@
 # AI Rules - Generated Files
 **/.claude/commands/ai-rules-generated-*.md
 **/.clinerules/
+**/.cursor/commands/ai-rules-generated-*.md
 **/.cursor/mcp.json
 **/.cursor/rules/
 **/.kilocode/rules/

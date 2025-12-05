@@ -184,6 +184,42 @@ pub fn check_directory_exact_match(
     Ok(true)
 }
 
+/// Check if generated files in directory match expected content
+/// Only checks files with the given prefix
+pub fn check_directory_files_match(
+    dir: &Path,
+    expected: &HashMap<PathBuf, String>,
+    prefix: &str,
+) -> Result<bool> {
+    if !dir.exists() {
+        return Ok(expected.is_empty());
+    }
+
+    // Check all expected files exist with correct content
+    for (path, expected_content) in expected {
+        if !path.exists() {
+            return Ok(false);
+        }
+        let actual_content = fs::read_to_string(path)?;
+        if actual_content != *expected_content {
+            return Ok(false);
+        }
+    }
+
+    // Check no extra generated files exist
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name.starts_with(prefix) && !expected.contains_key(&path) {
+                return Ok(false);
+            }
+        }
+    }
+
+    Ok(true)
+}
+
 const EXCLUDED_DIRECTORIES: &[&str] = &[
     "ai-rules",
     "target",
