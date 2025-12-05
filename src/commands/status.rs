@@ -537,4 +537,122 @@ Test rule content"#;
 
         assert!(status.agent_statuses["claude"]);
     }
+
+    const TEST_COMMAND_CONTENT: &str = r#"---
+description: Test command
+---
+Test command body"#;
+
+    fn setup_claude_with_command_source(temp_dir: &TempDir) {
+        // Create source files with commands
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/test-cmd.md",
+            TEST_COMMAND_CONTENT,
+        );
+
+        // Create agent files in sync
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
+            "Test rule content\n",
+        );
+        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
+        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
+    }
+
+    // Note: These tests are ignored because command generator implementations
+    // (ClaudeCommandGenerator, etc.) are in separate branches that haven't been
+    // merged yet. Once those branches are merged, remove the #[ignore] attributes.
+    // See branches: jonandersen/claude-command-folder, jonandersen/cursor-folder-command
+
+    #[test]
+    #[ignore = "Requires command generator implementation to be merged"]
+    fn test_status_reports_command_out_of_sync() {
+        let temp_dir = TempDir::new().unwrap();
+        setup_claude_with_command_source(&temp_dir);
+
+        // Create wrong command file
+        create_file(
+            temp_dir.path(),
+            ".claude/commands/ai-rules/test-cmd.md",
+            "wrong content",
+        );
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be marked out of sync because command file is wrong
+        assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    #[ignore = "Requires command generator implementation to be merged"]
+    fn test_status_with_missing_command_files() {
+        let temp_dir = TempDir::new().unwrap();
+        setup_claude_with_command_source(&temp_dir);
+
+        // No command files generated yet
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be marked out of sync because command files are missing
+        assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    #[ignore = "Requires command generator implementation to be merged"]
+    fn test_status_with_commands_in_sync() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/test-cmd.md",
+            TEST_COMMAND_CONTENT,
+        );
+
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be in sync
+        assert!(status.agent_statuses["claude"]);
+    }
 }
