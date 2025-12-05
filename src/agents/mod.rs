@@ -1,3 +1,5 @@
+pub mod amp;
+pub mod amp_command_generator;
 pub mod claude;
 pub mod claude_command_generator;
 pub mod command_generator;

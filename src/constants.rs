@@ -23,6 +23,7 @@ pub const COMMANDS_DIR: &str = "commands";
 pub const CLAUDE_COMMANDS_DIR: &str = ".claude/commands";
 #[allow(dead_code)]
 pub const CURSOR_COMMANDS_DIR: &str = ".cursor/commands";
+pub const AMP_COMMANDS_DIR: &str = ".agents/commands";
 #[allow(dead_code)]
 pub const FIREBENDER_COMMANDS_FIELD: &str = "commands";
 
