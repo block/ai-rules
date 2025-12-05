@@ -27,6 +27,15 @@ fn collect_all_gitignore_patterns(
         .collect();
     base_patterns.extend(mcp_patterns);
 
+    let command_patterns: Vec<String> = registry
+        .get_all_tool_names()
+        .iter()
+        .filter_map(|name| registry.get_tool(name.as_str()))
+        .filter_map(|tool| tool.command_generator())
+        .flat_map(|cmd_gen| cmd_gen.command_gitignore_patterns())
+        .collect();
+    base_patterns.extend(command_patterns);
+
     let base_pattern = Path::new(AI_RULE_SOURCE_DIR)
         .join(GENERATED_RULE_BODY_DIR)
         .display()
