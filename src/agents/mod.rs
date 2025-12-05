@@ -1,4 +1,5 @@
 pub mod claude;
+pub mod claude_command_generator;
 pub mod command_generator;
 pub mod cursor;
 pub mod firebender;
