@@ -46,5 +46,14 @@ pub fn clean_generated_files(
         }
     }
 
+    // Clean command files
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            if let Some(cmd_gen) = tool.command_generator() {
+                cmd_gen.clean_commands(current_dir)?;
+            }
+        }
+    }
+
     Ok(())
 }
