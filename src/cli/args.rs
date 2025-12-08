@@ -18,6 +18,8 @@ pub struct Cli {
 pub struct InitArgs {
     #[arg(long = "params", value_name = "key=value")]
     pub params: Vec<String>,
+    #[arg(long, help = "Skip confirmation prompts and assume yes")]
+    pub force: bool,
 }
 
 #[derive(Subcommand)]
