@@ -14,5 +14,6 @@ pub trait CommandGeneratorTrait {
     fn check_commands(&self, current_dir: &Path) -> Result<bool>;
 
     /// Get gitignore patterns for generated commands
+    #[allow(dead_code)]
     fn command_gitignore_patterns(&self) -> Vec<String>;
 }

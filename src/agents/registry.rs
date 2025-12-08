@@ -1,8 +1,8 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::{
-    claude::ClaudeGenerator, cursor::CursorGenerator, firebender::FirebenderGenerator,
-    gemini::GeminiGenerator, markdown_based::MarkdownBasedGenerator,
-    single_file_based::SingleFileBasedGenerator,
+    amp::AmpGenerator, claude::ClaudeGenerator, cursor::CursorGenerator,
+    firebender::FirebenderGenerator, gemini::GeminiGenerator,
+    markdown_based::MarkdownBasedGenerator, single_file_based::SingleFileBasedGenerator,
 };
 use crate::constants::AGENTS_MD_FILENAME;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ impl AgentToolRegistry {
             Box::new(CursorGenerator),
             Box::new(FirebenderGenerator),
             Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
-            Box::new(SingleFileBasedGenerator::new("amp", AGENTS_MD_FILENAME)),
+            Box::new(AmpGenerator),
             Box::new(SingleFileBasedGenerator::new("codex", AGENTS_MD_FILENAME)),
             Box::new(SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME)),
             Box::new(GeminiGenerator),

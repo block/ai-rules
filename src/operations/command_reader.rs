@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-use crate::constants::{AI_RULE_SOURCE_DIR, COMMANDS_DIR, GENERATED_FILE_PREFIX, MD_EXTENSION};
+use crate::constants::{AI_RULE_SOURCE_DIR, COMMANDS_DIR, GENERATED_COMMAND_SUFFIX, MD_EXTENSION};
 use crate::utils::file_utils::{
     calculate_relative_path, create_relative_symlink, ensure_trailing_newline,
     find_files_by_extension,
@@ -82,7 +82,7 @@ pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<V
     let mut created_symlinks = Vec::new();
 
     for command_file in command_files {
-        let symlink_name = format!("{}{}.md", GENERATED_FILE_PREFIX, command_file.name);
+        let symlink_name = format!("{}-{}.md", command_file.name, GENERATED_COMMAND_SUFFIX);
         let from_path = PathBuf::from(target_dir).join(&symlink_name);
         let relative_source = calculate_relative_path(&from_path, &command_file.relative_path);
         let symlink_path = current_dir.join(&from_path);
@@ -110,7 +110,8 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 
         if let Some(file_name) = path.file_name() {
             if let Some(name_str) = file_name.to_str() {
-                if name_str.starts_with(GENERATED_FILE_PREFIX) && path.is_symlink() {
+                let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                if name_str.ends_with(&suffix_pattern) && path.is_symlink() {
                     fs::remove_file(&path)?;
                 }
             }
@@ -139,7 +140,8 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
-                    if name_str.starts_with(GENERATED_FILE_PREFIX) && path.is_symlink() {
+                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    if name_str.ends_with(&suffix_pattern) && path.is_symlink() {
                         return Ok(false);
                     }
                 }
@@ -149,7 +151,7 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
     }
 
     for command_file in command_files {
-        let symlink_name = format!("{}{}.md", GENERATED_FILE_PREFIX, command_file.name);
+        let symlink_name = format!("{}-{}.md", command_file.name, GENERATED_COMMAND_SUFFIX);
         let symlink_path = target_path.join(&symlink_name);
 
         if !symlink_path.is_symlink() {
@@ -181,7 +183,7 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 /// Returns gitignore patterns for generated command symlinks
 #[allow(dead_code)]
 pub fn get_command_gitignore_patterns(target_dir: &str) -> Vec<String> {
-    vec![format!("{}/{}*.md", target_dir, GENERATED_FILE_PREFIX)]
+    vec![format!("{}/*-{}.md", target_dir, GENERATED_COMMAND_SUFFIX)]
 }
 
 /// Returns the body content of a command (without frontmatter) with trailing newline
@@ -235,7 +237,7 @@ mod tests {
         let commit_symlink = temp_dir
             .path()
             .join(".claude/commands")
-            .join(format!("{}commit.md", GENERATED_FILE_PREFIX));
+            .join(format!("commit-{}.md", GENERATED_COMMAND_SUFFIX));
         assert!(commit_symlink.is_symlink());
 
         let content = fs::read_to_string(&commit_symlink).unwrap();
@@ -256,7 +258,7 @@ mod tests {
 
         remove_generated_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
 
-        let generated = commands_path.join(format!("{}test.md", GENERATED_FILE_PREFIX));
+        let generated = commands_path.join(format!("test-{}.md", GENERATED_COMMAND_SUFFIX));
         assert!(!generated.exists());
 
         assert!(commands_path.join("custom.md").exists());

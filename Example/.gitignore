@@ -1,8 +1,12 @@
 
 # AI Rules - Generated Files
+**/.agents/commands/*-ai-rules.md
+**/.claude/commands/ai-rules/
 **/.clinerules/
+**/.cursor/commands/ai-rules/
 **/.cursor/mcp.json
 **/.cursor/rules/
+**/.gemini/settings.json
 **/.kilocode/rules/
 **/.mcp.json
 **/.roo/mcp.json

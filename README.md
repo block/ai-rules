@@ -20,6 +20,7 @@ CLI tool to manage AI rules across different AI coding agents. Standardize and d
 - [MCP Configuration](#mcp-configuration)
 - [Supported AI Coding Agents](#supported-ai-coding-agents)
   - [Firebender Overlay Support](#firebender-overlay-support)
+  - [Custom Commands Support](#custom-commands-support)
   - [Claude Code Skills Support](#claude-code-skills-support)
 - [Project Structure](#project-structure)
   - [Standard Mode](#standard-mode)
@@ -313,6 +314,32 @@ Firebender supports overlay configuration files. To customize your configuration
 
 **MCP Integration:** If you have `ai-rules/mcp.json`, the MCP servers are merged into `firebender.json` first, then the overlay is applied. This allows you to override MCP configurations in the overlay if needed.
 
+### Custom Commands Support
+
+Custom commands (also called "slash commands") allow you to define reusable prompts that can be invoked by name in supported AI agents. Commands are defined as markdown files in `ai-rules/commands/` and are generated to agent-specific locations.
+
+**Frontmatter Fields:**
+
+Command files support optional YAML frontmatter. The following fields are currently supported:
+
+- `allowed-tools` - Tool restrictions for the command (Claude-specific)
+- `description` - Human-readable description of what the command does
+- `model` - Specific model to use for this command (Claude-specific)
+
+**Agent Behavior:**
+
+| Agent | Output Location | Frontmatter Handling |
+|-------|----------------|---------------------|
+| **AMP** | `.agents/commands/{name}-ai-rules.md` | ❌ Stripped - AMP doesn't use YAML frontmatter |
+| **Claude Code** | `.claude/commands/ai-rules/*.md` | ✅ Preserved - Claude uses frontmatter for tool restrictions and model selection |
+| **Cursor** | `.cursor/commands/ai-rules/*.md` | ❌ Stripped - Cursor doesn't use YAML frontmatter |
+| **Firebender** | `firebender.json` (commands array) | ❌ Stripped - Command paths embedded in JSON config |
+
+**Documentation:**
+- [Claude Code Slash Commands](https://code.claude.com/docs/en/slash-commands)
+- [Cursor Commands](https://cursor.com/docs/agent/chat/commands)
+- [Firebender Commands](https://docs.firebender.com/context/commands)
+
 ### Claude Code Skills Support
 
 Claude Code supports optional rules through [skills](https://docs.claude.com/en/docs/claude-code/skills) (requires `use_claude_skills: true` in config). When enabled and a source rule has `alwaysApply: false`, the tool generates:
@@ -347,6 +374,8 @@ alwaysApply: false
 monorepo/
 ├── ai-rules/              # Global rule files
 │   ├── .generated-ai-rules/  # Root processed files
+│   ├── commands/         # Custom commands (slash commands)
+│   │   └── commit.md     # Example command
 │   ├── general.md        # Repository-wide rules
 │   └── mcp.json          # MCP server configuration
 ├── frontend/              # Frontend application
@@ -355,9 +384,12 @@ monorepo/
 │   │   ├── react.md      # React component rules
 │   │   └── styling.md    # CSS/styling rules
 │   ├── CLAUDE.md          # Frontend Claude rules
+│   ├── .agents/commands/  # Frontend AMP commands ({name}-ai-rules.md)
 │   ├── .claude/skills/    # Frontend Claude skills (requires use_claude_skills: true)
+│   ├── .claude/commands/ai-rules/  # Frontend Claude commands (*.md)
 │   ├── .clinerules/       # Frontend Cline rules (*.md files)
 │   ├── .cursor/rules/     # Frontend Cursor rules (*.mdc files)
+│   ├── .cursor/commands/ai-rules/  # Frontend Cursor commands (*.md)
 │   ├── GEMINI.md          # Frontend Gemini rules
 │   ├── AGENTS.md       # Frontend Goose/AMP/Codex/Copilot rules
 │   ├── .kilocode/rules/   # Frontend Kilocode rules (*.md files)
@@ -369,18 +401,24 @@ monorepo/
 │   │   ├── api.md        # API development rules
 │   │   └── database.md   # Database schema rules
 │   ├── CLAUDE.md          # Backend Claude rules
+│   ├── .agents/commands/  # Backend AMP commands ({name}-ai-rules.md)
 │   ├── .claude/skills/    # Backend Claude skills (requires use_claude_skills: true)
+│   ├── .claude/commands/ai-rules/  # Backend Claude commands (*.md)
 │   ├── .clinerules/       # Backend Cline rules (*.md files)
 │   ├── .cursor/rules/     # Backend Cursor rules (*.mdc files)
+│   ├── .cursor/commands/ai-rules/  # Backend Cursor commands (*.md)
 │   ├── GEMINI.md          # Backend Gemini rules
 │   ├── AGENTS.md       # Backend Goose/AMP/Codex/Copilot rules
 │   ├── .kilocode/rules/   # Backend Kilocode rules (*.md files)
 │   ├── .roo/rules/        # Backend Roo rules (*.md files)
 │   └── api/
 ├── CLAUDE.md             # Root Claude rules
+├── .agents/commands/     # Root AMP commands ({name}-ai-rules.md)
 ├── .claude/skills/       # Root Claude skills (requires use_claude_skills: true)
+├── .claude/commands/ai-rules/  # Root Claude commands (*.md)
 ├── .clinerules/          # Root Cline rules (*.md files)
 ├── .cursor/rules/        # Root Cursor rules (*.mdc files)
+├── .cursor/commands/ai-rules/  # Root Cursor commands (*.md)
 ├── .cursor/mcp.json      # Root Cursor MCP config
 ├── firebender.json       # Root Firebender rules + MCP
 ├── firebender-overlay.json # Root Firebender overlay
@@ -398,14 +436,21 @@ monorepo/
 project/
 ├── ai-rules/
 │   ├── AGENTS.md          # Source file
+│   ├── commands/          # Custom commands (optional)
+│   │   └── commit.md      # Example command
 │   └── mcp.json           # MCP config (optional)
 ├── CLAUDE.md              # Symlink → ai-rules/AGENTS.md
 ├── GEMINI.md              # Symlink → ai-rules/AGENTS.md
 ├── AGENTS.md              # Symlink → ai-rules/AGENTS.md
-├── firebender.json        # References ai-rules/AGENTS.md
+├── firebender.json        # References ai-rules/AGENTS.md + commands
+├── .agents/
+│   └── commands/          # AMP commands ({name}-ai-rules.md)
+├── .claude/
+│   └── commands/ai-rules/ # Claude commands (*.md)
 ├── .clinerules/
 │   └── AGENTS.md          # Symlink → ../ai-rules/AGENTS.md
 ├── .cursor/
+│   ├── commands/ai-rules/ # Cursor commands (*.md)
 │   └── mcp.json           # Cursor MCP config (if mcp.json exists)
 ├── .kilocode/rules/
 │   └── AGENTS.md          # Symlink → ../../ai-rules/AGENTS.md
