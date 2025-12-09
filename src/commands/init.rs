@@ -68,11 +68,16 @@ pub fn run_init(current_dir: &Path, init_args: InitArgs) -> Result<()> {
         return Ok(());
     }
 
-    if !init_args.force
-        && !prompt_yes_no(
-            "ai-rules/ already has rules. Run Goose to initialize another rule file? [y/N]: ",
-        )?
-    {
+    let prompt_message = match &recipe_source {
+        RecipeSource::Default => {
+            "ai-rules/ already has rules. Create a new rule file using Goose? [y/N]: "
+        }
+        RecipeSource::Custom(_) => {
+            "ai-rules/ already has rules. Run custom Goose recipe? (Existing files are preserved unless your recipe explicitly modifies them) [y/N]: "
+        }
+    };
+
+    if !init_args.force && !prompt_yes_no(prompt_message)? {
         return Ok(());
     }
 
