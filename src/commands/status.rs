@@ -401,6 +401,7 @@ Test rule content"#;
                 agents: None,
                 gitignore: false,
                 nested_depth,
+                auto_update_gitignore: true,
             },
             false,
         )
@@ -539,6 +540,7 @@ Test rule content"#;
                 agents: Some(vec!["claude".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                auto_update_gitignore: true,
             },
             false,
         );
@@ -656,6 +658,7 @@ Test command body"#;
                 agents: Some(vec!["claude".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                auto_update_gitignore: true,
             },
             false,
         );

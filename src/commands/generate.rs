@@ -14,13 +14,14 @@ pub fn run_generate(
     use_claude_skills: bool,
 ) -> Result<()> {
     println!(
-        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}",
+        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}, auto_update_gitignore: {}",
         args.agents
             .as_ref()
             .map(|a| a.join(","))
             .unwrap_or_else(|| "all".to_string()),
         args.nested_depth,
-        args.gitignore
+        args.gitignore,
+        args.auto_update_gitignore
     );
     let registry = AgentToolRegistry::new(use_claude_skills);
     let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
@@ -32,11 +33,13 @@ pub fn run_generate(
 
     generation_result.display(current_dir);
 
-    if args.gitignore {
-        operations::update_project_gitignore(current_dir, &registry, args.nested_depth)?;
-        print_success("Updated .gitignore with generated file patterns");
-    } else {
-        operations::remove_gitignore_section(current_dir, &registry)?;
+    if args.auto_update_gitignore {
+        if args.gitignore {
+            operations::update_project_gitignore(current_dir, &registry, args.nested_depth)?;
+            print_success("Updated .gitignore with generated file patterns");
+        } else {
+            operations::remove_gitignore_section(current_dir, &registry)?;
+        }
     }
 
     Ok(())
@@ -151,6 +154,7 @@ mod tests {
         agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
+        auto_update_gitignore: true,
     };
 
     const TEST_RULE_CONTENT: &str = r#"---
@@ -245,6 +249,7 @@ Test rule content
             agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -267,6 +272,7 @@ Test rule content
             agents: Some(vec!["claude".to_string(), "cursor".to_string()]),
             gitignore: true,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -378,6 +384,7 @@ Test rule content
             agents: Some(vec!["claude".to_string()]),
             gitignore: true,
             nested_depth: 0,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -419,6 +426,7 @@ Test rule content
             agents: Some(vec!["claude".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -623,6 +631,7 @@ Optional content"#,
             agents: Some(vec!["claude".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         run_generate(temp_dir.path(), args.clone(), true).unwrap();
 
@@ -664,6 +673,7 @@ Optional content"#,
             ]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -699,6 +709,7 @@ Optional content"#,
             agents: Some(vec!["claude".to_string(), "cursor".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -723,6 +734,7 @@ Optional content"#,
             agents: Some(vec!["firebender".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -730,5 +742,50 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), "firebender.json");
 
         assert_file_not_exists(temp_dir.path(), ".mcp.json");
+    }
+
+    #[test]
+    fn test_run_generate_with_auto_update_gitignore_false() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create an existing .gitignore with ai-rules section
+        create_file(
+            temp_dir.path(),
+            ".gitignore",
+            r#"# Existing content
+*.old
+
+# AI Rules - Generated Files
+CLAUDE.md
+# End AI Rules
+"#,
+        );
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            gitignore: true, // Would normally update gitignore
+            nested_depth: NESTED_DEPTH,
+            auto_update_gitignore: false, // But this prevents any changes
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Generated files should still be created
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
+
+        // But .gitignore should be UNCHANGED
+        assert_file_content(
+            temp_dir.path(),
+            ".gitignore",
+            r#"# Existing content
+*.old
+
+# AI Rules - Generated Files
+CLAUDE.md
+# End AI Rules
+"#,
+        );
     }
 }

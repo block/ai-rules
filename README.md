@@ -91,7 +91,18 @@ Create `ai-rules/ai-rules-config.yaml` in the `ai-rules` directory. Example:
 agents: [claude, cursor, cline] # Generate rules only for these agents
 nested_depth: 2 # Search 2 levels deep for ai-rules/ folders
 gitignore: true # Ignore the generated rules in git
+auto_update_gitignore: true # Allow ai-rules to modify .gitignore (default: true)
 ```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `agents` | list | all agents | List of agents to generate rules for |
+| `nested_depth` | number | 0 | Directory depth to scan for `ai-rules/` folders |
+| `gitignore` | boolean | false | Add generated files to `.gitignore` |
+| `auto_update_gitignore` | boolean | true | Allow ai-rules to modify `.gitignore`. Set to `false` to prevent any `.gitignore` changes (useful for repositories with strict `.gitignore` policies) |
+| `use_claude_skills` | boolean | false | Enable Claude Code skills mode (experimental) |
 
 ### Configuration Precedence
 
@@ -99,7 +110,7 @@ Options are resolved in the following order (highest to lowest priority):
 
 1. **CLI options** - `--agents`, `--nested-depth`, `--no-gitignore`
 2. **Config file** - `ai-rules/ai-rules-config.yaml` (at current working directory)
-3. **Default values** - All agents, depth 0, generated files are NOT git ignored
+3. **Default values** - All agents, depth 0, generated files are NOT git ignored, auto-update of `.gitignore` enabled
 
 ### Experimental Options
 

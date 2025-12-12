@@ -46,10 +46,13 @@ impl GenerateArgs {
             false
         };
 
+        let auto_update_gitignore = config.and_then(|c| c.auto_update_gitignore).unwrap_or(true);
+
         ResolvedGenerateArgs {
             agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
+            auto_update_gitignore,
         }
     }
 }
