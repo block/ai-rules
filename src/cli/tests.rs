@@ -11,6 +11,7 @@ fn test_generate_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -35,6 +36,7 @@ fn test_generate_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -75,6 +77,7 @@ fn test_generate_args_with_config_partial_config() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -99,6 +102,7 @@ fn test_nested_depth_args_with_config() {
         no_gitignore: None,
         nested_depth: Some(4),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args_with_cli = NestedDepthArgs {
@@ -121,6 +125,7 @@ fn test_nested_depth_explicit_zero_overrides_config() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = NestedDepthArgs {
@@ -138,6 +143,7 @@ fn test_status_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = StatusArgs {
@@ -161,6 +167,7 @@ fn test_status_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = StatusArgs {
@@ -195,6 +202,7 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
         no_gitignore: Some(true),
         nested_depth: None,
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -217,6 +225,7 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -239,6 +248,7 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        auto_update_gitignore: None,
     };
 
     let args = GenerateArgs {
@@ -251,4 +261,61 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
     let resolved = args.with_config(Some(&config));
 
     assert!(resolved.gitignore);
+}
+
+#[test]
+fn test_generate_args_auto_update_gitignore_defaults_to_true() {
+    let args = GenerateArgs {
+        agents: None,
+        gitignore: false,
+        no_gitignore: false,
+        nested_depth: None,
+    };
+
+    let resolved = args.with_config(None);
+    assert!(resolved.auto_update_gitignore);
+}
+
+#[test]
+fn test_generate_args_auto_update_gitignore_from_config_true() {
+    let config = config::Config {
+        agents: None,
+        gitignore: None,
+        no_gitignore: None,
+        nested_depth: None,
+        use_claude_skills: None,
+        auto_update_gitignore: Some(true),
+    };
+
+    let args = GenerateArgs {
+        agents: None,
+        gitignore: false,
+        no_gitignore: false,
+        nested_depth: None,
+    };
+
+    let resolved = args.with_config(Some(&config));
+    assert!(resolved.auto_update_gitignore);
+}
+
+#[test]
+fn test_generate_args_auto_update_gitignore_from_config_false() {
+    let config = config::Config {
+        agents: None,
+        gitignore: None,
+        no_gitignore: None,
+        nested_depth: None,
+        use_claude_skills: None,
+        auto_update_gitignore: Some(false),
+    };
+
+    let args = GenerateArgs {
+        agents: None,
+        gitignore: false,
+        no_gitignore: false,
+        nested_depth: None,
+    };
+
+    let resolved = args.with_config(Some(&config));
+    assert!(!resolved.auto_update_gitignore);
 }

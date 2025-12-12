@@ -10,6 +10,7 @@ pub struct Config {
     pub no_gitignore: Option<bool>,
     pub nested_depth: Option<usize>,
     pub use_claude_skills: Option<bool>,
+    pub auto_update_gitignore: Option<bool>,
 }
 
 pub fn load_config(current_dir: &Path) -> Result<Option<Config>> {
@@ -165,5 +166,52 @@ nested_depth: 2
         assert_eq!(config.no_gitignore, Some(true));
         // New field should be None if not specified
         assert_eq!(config.gitignore, None);
+    }
+
+    #[test]
+    fn test_load_config_with_auto_update_gitignore_true() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["claude"]
+auto_update_gitignore: true
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert_eq!(config.auto_update_gitignore, Some(true));
+    }
+
+    #[test]
+    fn test_load_config_with_auto_update_gitignore_false() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["claude"]
+auto_update_gitignore: false
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert_eq!(config.auto_update_gitignore, Some(false));
+    }
+
+    #[test]
+    fn test_load_config_without_auto_update_gitignore_defaults_to_none() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["claude"]
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert!(config.auto_update_gitignore.is_none());
     }
 }

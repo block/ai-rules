@@ -70,6 +70,7 @@ mod tests {
             agents: None,
             gitignore: true,
             nested_depth,
+            auto_update_gitignore: true,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         if let Err(e) = &generate_result {
@@ -148,6 +149,7 @@ mod tests {
             agents: None,
             gitignore: true,
             nested_depth,
+            auto_update_gitignore: true,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         assert!(generate_result.is_ok());

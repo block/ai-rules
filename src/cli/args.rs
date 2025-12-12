@@ -118,6 +118,7 @@ pub struct ResolvedGenerateArgs {
     pub agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
+    pub auto_update_gitignore: bool,
 }
 
 #[derive(Debug)]

@@ -160,6 +160,7 @@ Test rule content"#;
                 agents: None,
                 gitignore: false,
                 nested_depth: 2,
+                auto_update_gitignore: true,
             },
             false,
         );
@@ -209,6 +210,7 @@ Test rule content"#;
                 ]),
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                auto_update_gitignore: true,
             },
             false,
         );
