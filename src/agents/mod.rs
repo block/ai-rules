@@ -7,7 +7,6 @@ pub mod cursor;
 pub mod cursor_command_generator;
 pub mod firebender;
 pub mod gemini;
-pub mod markdown_based;
 pub mod mcp_generator;
 pub mod registry;
 pub mod roo;

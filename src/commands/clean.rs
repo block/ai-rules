@@ -217,7 +217,7 @@ Test rule content"#;
         let expected_files = [
             "CLAUDE.md",
             ".cursor/rules/ai-rules-generated-test.mdc",
-            ".roo/rules/ai-rules-generated-test.md",
+            AGENTS_MD_FILENAME,
             ".mcp.json",
             ".cursor/mcp.json",
             ".roo/mcp.json",

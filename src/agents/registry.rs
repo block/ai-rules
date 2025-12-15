@@ -1,8 +1,8 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::{
     amp::AmpGenerator, claude::ClaudeGenerator, cursor::CursorGenerator,
-    firebender::FirebenderGenerator, gemini::GeminiGenerator,
-    markdown_based::MarkdownBasedGenerator, single_file_based::SingleFileBasedGenerator,
+    firebender::FirebenderGenerator, gemini::GeminiGenerator, roo::RooGenerator,
+    single_file_based::SingleFileBasedGenerator,
 };
 use crate::constants::AGENTS_MD_FILENAME;
 use std::collections::HashMap;
@@ -24,11 +24,7 @@ impl AgentToolRegistry {
 
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
             claude_generator,
-            Box::new(MarkdownBasedGenerator::new_with_rules_subdir(
-                "cline",
-                ".clinerules",
-                None,
-            )),
+            Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
             Box::new(CursorGenerator),
             Box::new(FirebenderGenerator),
             Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
@@ -36,8 +32,11 @@ impl AgentToolRegistry {
             Box::new(SingleFileBasedGenerator::new("codex", AGENTS_MD_FILENAME)),
             Box::new(SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME)),
             Box::new(GeminiGenerator),
-            Box::new(MarkdownBasedGenerator::new("kilocode", ".kilocode")),
-            Box::new(MarkdownBasedGenerator::new("roo", ".roo")),
+            Box::new(SingleFileBasedGenerator::new(
+                "kilocode",
+                AGENTS_MD_FILENAME,
+            )),
+            Box::new(RooGenerator::new()),
         ];
 
         for generator in generators {
