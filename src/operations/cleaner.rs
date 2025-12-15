@@ -1,6 +1,7 @@
 use crate::agents::AgentToolRegistry;
 use crate::constants::GENERATED_RULE_BODY_DIR;
 use crate::operations::body_generator::generated_body_file_dir;
+use crate::operations::legacy_cleaner::clean_legacy_agent_directories;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -31,6 +32,9 @@ pub fn clean_generated_files(
             fs::remove_file(&file_path)?;
         }
     }
+
+    // Clean legacy agent directories (roo, cline, kilocode migrated to AGENTS.md)
+    clean_legacy_agent_directories(current_dir)?;
 
     for agent in agents {
         if let Some(tool) = registry.get_tool(agent) {
