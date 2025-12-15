@@ -10,6 +10,7 @@ pub mod gemini;
 pub mod markdown_based;
 pub mod mcp_generator;
 pub mod registry;
+pub mod roo;
 pub mod rule_generator;
 pub mod single_file_based;
 
