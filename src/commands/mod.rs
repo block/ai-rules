@@ -68,6 +68,7 @@ mod tests {
         // Generate - should create generated files
         let generate_args = ResolvedGenerateArgs {
             agents: None,
+            command_agents: None,
             gitignore: true,
             nested_depth,
         };
@@ -88,6 +89,7 @@ mod tests {
         // Check status - should be in sync
         let status_args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth,
         };
         let status_result = check_project_status(project_path, status_args, false).unwrap();
@@ -103,6 +105,7 @@ mod tests {
         // Check status again - should be out of sync
         let status_args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth,
         };
         let status_after_change = check_project_status(project_path, status_args, false).unwrap();
@@ -146,6 +149,7 @@ mod tests {
 
         let generate_args = ResolvedGenerateArgs {
             agents: None,
+            command_agents: None,
             gitignore: true,
             nested_depth,
         };
@@ -171,6 +175,7 @@ mod tests {
         // Check status again - should be out of sync
         let status_args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth,
         };
         let status_after_change = check_project_status(project_path, status_args, false).unwrap();

@@ -6,6 +6,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub agents: Option<Vec<String>>,
+    pub command_agents: Option<Vec<String>>,
     pub gitignore: Option<bool>,
     pub no_gitignore: Option<bool>,
     pub nested_depth: Option<usize>,
@@ -165,5 +166,25 @@ nested_depth: 2
         assert_eq!(config.no_gitignore, Some(true));
         // New field should be None if not specified
         assert_eq!(config.gitignore, None);
+    }
+
+    #[test]
+    fn test_load_config_with_command_agents() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["amp"]
+command_agents: ["claude", "amp"]
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert_eq!(config.agents, Some(vec!["amp".to_string()]));
+        assert_eq!(
+            config.command_agents,
+            Some(vec!["claude".to_string(), "amp".to_string()])
+        );
     }
 }

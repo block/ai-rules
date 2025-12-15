@@ -24,10 +24,19 @@ pub fn run_generate(
     );
     let registry = AgentToolRegistry::new(use_claude_skills);
     let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
+
+    let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
+
     let mut generation_result = GenerationResult::default();
 
     traverse_project_directories(current_dir, args.nested_depth, 0, &mut |dir| {
-        generate_files(dir, &agents, &registry, &mut generation_result)
+        generate_files(
+            dir,
+            &agents,
+            &command_agents,
+            &registry,
+            &mut generation_result,
+        )
     })?;
 
     generation_result.display(current_dir);
@@ -45,6 +54,7 @@ pub fn run_generate(
 fn generate_files(
     current_dir: &Path,
     agents: &[String],
+    command_agents: &[String],
     registry: &AgentToolRegistry,
     result: &mut GenerationResult,
 ) -> Result<()> {
@@ -85,9 +95,9 @@ fn generate_files(
     }
     write_directory_files(&mcp_files_to_write)?;
 
-    // Generate command files
+    // Generate command files - use command_agents instead of agents
     let mut command_files_to_write: HashMap<PathBuf, String> = HashMap::new();
-    for agent in agents {
+    for agent in command_agents {
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(cmd_gen) = tool.command_generator() {
                 // Generate new command files
@@ -149,6 +159,7 @@ mod tests {
 
     const GENERATE_ARGS: ResolvedGenerateArgs = ResolvedGenerateArgs {
         agents: None,
+        command_agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
     };
@@ -243,6 +254,7 @@ Test rule content
 
         let args = ResolvedGenerateArgs {
             agents: None,
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -265,6 +277,7 @@ Test rule content
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string(), "cursor".to_string()]),
+            command_agents: None,
             gitignore: true,
             nested_depth: NESTED_DEPTH,
         };
@@ -373,6 +386,7 @@ Test rule content
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             gitignore: true,
             nested_depth: 0,
         };
@@ -414,6 +428,7 @@ Test rule content
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -451,7 +466,13 @@ Test rule content
 
         let agents = vec!["claude".to_string(), "goose".to_string()];
         let mut generation_result = GenerationResult::default();
-        let result = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result);
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+        );
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
@@ -490,7 +511,13 @@ Test rule content
 
         let agents = vec!["claude".to_string()];
         let mut generation_result = GenerationResult::default();
-        let result = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result);
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+        );
         assert!(result.is_ok());
 
         // Old normal files should be cleaned up
@@ -514,7 +541,13 @@ Test rule content
         let agents = vec!["claude".to_string(), "goose".to_string()];
         let mut generation_result = GenerationResult::default();
 
-        let result = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result);
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+        );
         assert!(result.is_ok());
 
         // Verify the entire GenerationResult struct
@@ -539,7 +572,13 @@ Test rule content
         let agents = vec!["claude".to_string(), "cursor".to_string()];
         let mut generation_result = GenerationResult::default();
 
-        let result = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result);
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+        );
         assert!(result.is_ok());
 
         assert_eq!(generation_result.files_by_agent.len(), 2);
@@ -567,7 +606,13 @@ Test rule content
         create_file(temp_dir.path(), "ai-rules/AGENTS.md", "# Pure content");
         let agents = vec!["claude".to_string()];
         let mut generation_result = GenerationResult::default();
-        let result1 = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result);
+        let result1 = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+        );
         assert!(result1.is_ok());
 
         let claude_path = temp_dir.path().join("CLAUDE.md");
@@ -583,7 +628,13 @@ New body content"#;
         create_file(temp_dir.path(), "ai-rules/new.md", rule_content);
 
         let mut generation_result2 = GenerationResult::default();
-        let result2 = generate_files(temp_dir.path(), &agents, &registry, &mut generation_result2);
+        let result2 = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result2,
+        );
         assert!(result2.is_ok());
 
         assert!(claude_path.exists());
@@ -618,6 +669,7 @@ Optional content"#,
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -659,6 +711,7 @@ Optional content"#,
                 "cursor".to_string(),
                 "roo".to_string(),
             ]),
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -694,6 +747,7 @@ Optional content"#,
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string(), "cursor".to_string()]),
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -718,6 +772,7 @@ Optional content"#,
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["firebender".to_string()]),
+            command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
@@ -727,5 +782,64 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), "firebender.json");
 
         assert_file_not_exists(temp_dir.path(), ".mcp.json");
+    }
+
+    #[test]
+    fn test_generate_command_agents_different_from_agents() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a rule and a command
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/my-command.md",
+            "---\ndescription: Test command\n---\nCommand body",
+        );
+
+        // agents = amp only, command_agents = claude + amp
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["amp".to_string()]),
+            command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Rule files: only AMP (AGENTS.md), no CLAUDE.md
+        assert_file_exists(temp_dir.path(), "AGENTS.md");
+        assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+
+        // Command files: both Claude and AMP
+        assert_file_exists(temp_dir.path(), ".claude/commands/ai-rules/my-command.md");
+        assert_file_exists(temp_dir.path(), ".agents/commands/my-command-ai-rules.md");
+    }
+
+    #[test]
+    fn test_generate_command_agents_none_falls_back_to_agents() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/my-command.md",
+            "---\ndescription: Test command\n---\nCommand body",
+        );
+
+        // command_agents = None, should fall back to agents
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Both rules and commands for claude only
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
+        assert_file_exists(temp_dir.path(), ".claude/commands/ai-rules/my-command.md");
+        assert_file_not_exists(temp_dir.path(), "AGENTS.md");
+        assert_file_not_exists(temp_dir.path(), ".agents/commands/my-command-ai-rules.md");
     }
 }

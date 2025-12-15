@@ -17,9 +17,14 @@ fn resolve_nested_depth(
     nested_depth.or_else(|| config?.nested_depth)
 }
 
+fn resolve_command_agents(config: Option<&config::Config>) -> Option<Vec<String>> {
+    config?.command_agents.clone()
+}
+
 impl GenerateArgs {
     pub fn with_config(self, config: Option<&config::Config>) -> ResolvedGenerateArgs {
         let agents = resolve_agents(self.agents, config);
+        let command_agents = resolve_command_agents(config);
         let nested_depth = resolve_nested_depth(self.nested_depth, config);
 
         // Handle gitignore resolution with backward compatibility
@@ -48,6 +53,7 @@ impl GenerateArgs {
 
         ResolvedGenerateArgs {
             agents,
+            command_agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
         }
@@ -57,9 +63,11 @@ impl GenerateArgs {
 impl StatusArgs {
     pub fn with_config(self, config: Option<&config::Config>) -> ResolvedStatusArgs {
         let agents = resolve_agents(self.agents, config);
+        let command_agents = resolve_command_agents(config);
         let nested_depth = self.nested_depth_args.with_config(config);
         ResolvedStatusArgs {
             agents,
+            command_agents,
             nested_depth,
         }
     }
