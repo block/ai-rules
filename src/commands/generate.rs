@@ -354,12 +354,9 @@ Test rule content
         // Check that gitignore contains patterns with ** prefix for subdirectory matching
         let gitignore_content =
             std::fs::read_to_string(temp_dir.path().join(".gitignore")).unwrap();
-        assert!(gitignore_content.contains("**/.clinerules/"));
         assert!(gitignore_content.contains("**/.cursor/rules/"));
         assert!(gitignore_content.contains("**/ai-rules/.generated-ai-rules"));
         assert!(gitignore_content.contains(&format!("**/{AGENTS_MD_FILENAME}")));
-        assert!(gitignore_content.contains("**/.kilocode/rules/"));
-        assert!(gitignore_content.contains("**/.roo/rules/"));
         assert!(gitignore_content.contains("**/CLAUDE.md"));
     }
 
@@ -670,7 +667,7 @@ Optional content"#,
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
         assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
-        assert_file_exists(temp_dir.path(), ".roo/rules/ai-rules-generated-test.md");
+        assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME); // Roo now uses AGENTS.md
 
         assert_file_exists(temp_dir.path(), ".mcp.json");
         assert_file_exists(temp_dir.path(), ".cursor/mcp.json");

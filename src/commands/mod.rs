@@ -156,9 +156,6 @@ mod tests {
         let expected_targets = vec![
             ("CLAUDE.md", "ai-rules/AGENTS.md"),
             (AGENTS_MD_FILENAME, "ai-rules/AGENTS.md"),
-            (".clinerules/AGENTS.md", "../ai-rules/AGENTS.md"),
-            (".kilocode/rules/AGENTS.md", "../../ai-rules/AGENTS.md"),
-            (".roo/rules/AGENTS.md", "../../ai-rules/AGENTS.md"),
         ];
 
         verify_symlinks(project_path, &expected_targets, symlink_content);
