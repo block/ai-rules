@@ -9,7 +9,12 @@ pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
 pub const GENERATED_COMMANDS_SUBDIR: &str = "ai-rules";
 
 pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
+#[allow(dead_code)]
+pub const CODEX_SKILLS_DIR: &str = ".codex/skills";
+#[allow(dead_code)]
+pub const AMP_SKILLS_DIR: &str = ".agents/skills";
 pub const SKILL_FILENAME: &str = "SKILL.md";
+pub const SKILLS_DIR: &str = "skills";
 
 pub const FIREBENDER_JSON: &str = "firebender.json";
 pub const FIREBENDER_OVERLAY_JSON: &str = "firebender-overlay.json";
