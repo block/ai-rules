@@ -306,4 +306,99 @@ Test rule content"#;
         // .roo directory should remain (has user files)
         assert!(project_path.join(".roo").exists());
     }
+
+    #[test]
+    fn test_run_clean_removes_skill_symlinks() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_path = temp_dir.path();
+
+        // Create a user-defined skill in ai-rules/skills/
+        create_file(
+            project_path,
+            "ai-rules/skills/my-skill/SKILL.md",
+            "---\nname: my-skill\ndescription: My custom skill\n---\n\nSkill instructions",
+        );
+
+        // Generate skill symlinks
+        let generate_result = crate::commands::generate::run_generate(
+            project_path,
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: CLEAN_NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        // Verify skill symlink was created
+        let symlink_path = project_path.join(".claude/skills/ai-rules-generated-my-skill");
+        assert!(
+            symlink_path.exists(),
+            "Skill symlink should exist before clean"
+        );
+        assert!(symlink_path.is_symlink());
+
+        // Clean
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        assert!(clean_result.is_ok());
+
+        // Verify skill symlink was removed
+        assert!(
+            !symlink_path.exists(),
+            "Skill symlink should be removed after clean"
+        );
+
+        // Verify source skill folder remains
+        assert_file_exists(project_path, "ai-rules/skills/my-skill/SKILL.md");
+    }
+
+    #[test]
+    fn test_run_clean_preserves_user_skills() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_path = temp_dir.path();
+
+        // Create a user-defined skill in ai-rules/skills/
+        create_file(
+            project_path,
+            "ai-rules/skills/my-skill/SKILL.md",
+            "skill content",
+        );
+
+        // Generate skill symlinks
+        let generate_result = crate::commands::generate::run_generate(
+            project_path,
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: CLEAN_NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        // Create a user skill directly in the target directory (not a symlink)
+        let user_skill_dir = project_path.join(".claude/skills/user-created-skill");
+        std::fs::create_dir_all(&user_skill_dir).unwrap();
+        std::fs::write(user_skill_dir.join("SKILL.md"), "user skill content").unwrap();
+
+        // Clean
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        assert!(clean_result.is_ok());
+
+        // Generated symlink should be removed
+        assert_file_not_exists(project_path, ".claude/skills/ai-rules-generated-my-skill");
+
+        // User-created skill should remain
+        assert!(
+            user_skill_dir.exists(),
+            "User skill directory should remain"
+        );
+        assert!(
+            user_skill_dir.join("SKILL.md").exists(),
+            "User SKILL.md should remain"
+        );
+    }
 }

@@ -59,5 +59,14 @@ pub fn clean_generated_files(
         }
     }
 
+    // Clean skill symlinks
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            if let Some(skills_gen) = tool.skills_generator() {
+                skills_gen.clean_skills(current_dir)?;
+            }
+        }
+    }
+
     Ok(())
 }
