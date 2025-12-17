@@ -109,6 +109,12 @@ pub fn check_project_status(
                 }
             }
 
+            for agent in &agents {
+                if agent_statuses[agent] && !check_skill_files(dir, agent, &registry)? {
+                    agent_statuses.insert(agent.clone(), false);
+                }
+            }
+
             Ok(())
         });
 
@@ -182,6 +188,20 @@ fn check_command_files(
         return Ok(true);
     };
     cmd_gen.check_commands(current_dir)
+}
+
+fn check_skill_files(
+    current_dir: &Path,
+    agent_name: &str,
+    registry: &AgentToolRegistry,
+) -> Result<bool> {
+    let Some(tool) = registry.get_tool(agent_name) else {
+        return Ok(true);
+    };
+    let Some(skills_gen) = tool.skills_generator() else {
+        return Ok(true);
+    };
+    skills_gen.check_skills(current_dir)
 }
 
 fn print_status_results(status: &ProjectStatus) {
@@ -761,5 +781,164 @@ Test command body"#;
 
         // Claude should be in sync
         assert!(status.agent_statuses["claude"]);
+    }
+
+    fn setup_claude_with_skill_source(temp_dir: &TempDir) {
+        // Create source files with skills
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/skills/my-skill/SKILL.md",
+            "---\nname: my-skill\ndescription: My skill\n---\n\nSkill content",
+        );
+
+        // Create agent files in sync
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
+            "Test rule content\n",
+        );
+        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
+        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
+    }
+
+    #[test]
+    fn test_status_detects_missing_skill_symlinks() {
+        let temp_dir = TempDir::new().unwrap();
+        setup_claude_with_skill_source(&temp_dir);
+
+        // No skill symlinks generated yet
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be marked out of sync because skill symlinks are missing
+        assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_status_skills_in_sync() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/skills/my-skill/SKILL.md",
+            "---\nname: my-skill\ndescription: My skill\n---\n\nSkill content",
+        );
+
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be in sync
+        assert!(status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_status_with_no_source_skills() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create rule but NO skills folder
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be in sync (no skills to check)
+        assert!(status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_status_detects_orphaned_skill_symlinks() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create and generate skills
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/skills/my-skill/SKILL.md",
+            "skill content",
+        );
+
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        // Delete the source skill folder
+        std::fs::remove_dir_all(temp_dir.path().join("ai-rules/skills")).unwrap();
+
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Claude should be out of sync because orphaned symlinks exist
+        assert!(!status.agent_statuses["claude"]);
     }
 }
