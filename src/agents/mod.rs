@@ -12,5 +12,8 @@ pub mod registry;
 pub mod roo;
 pub mod rule_generator;
 pub mod single_file_based;
+pub mod skills_generator;
 
 pub use registry::AgentToolRegistry;
+#[allow(unused_imports)]
+pub use skills_generator::SkillsGeneratorTrait;
