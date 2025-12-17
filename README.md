@@ -89,7 +89,7 @@ Create `ai-rules/ai-rules-config.yaml` in the `ai-rules` directory. Example:
 
 ```yaml
 agents: [claude, cursor, cline] # Generate rules only for these agents
-command_agents: [claude, amp]   # Generate commands for these agents (defaults to agents list)
+command_agents: [claude, amp]   # Generate commands for these agents (defaults to agents list if not specified)
 nested_depth: 2 # Search 2 levels deep for ai-rules/ folders
 gitignore: true # Ignore the generated rules in git
 ```
