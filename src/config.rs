@@ -1,4 +1,5 @@
 use crate::constants::{AI_RULE_CONFIG_FILENAME, AI_RULE_SOURCE_DIR};
+use crate::utils::git_utils::find_git_root;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -14,21 +15,46 @@ pub struct Config {
 }
 
 pub fn load_config(current_dir: &Path) -> Result<Option<Config>> {
-    let config_path = current_dir
-        .join(AI_RULE_SOURCE_DIR)
-        .join(AI_RULE_CONFIG_FILENAME);
+    // Determine traversal boundary
+    let git_root = find_git_root(current_dir);
 
-    if !config_path.exists() {
-        return Ok(None);
+    let mut dir = current_dir;
+
+    loop {
+        let config_path = dir.join(AI_RULE_SOURCE_DIR).join(AI_RULE_CONFIG_FILENAME);
+
+        if config_path.exists() {
+            let config_content = std::fs::read_to_string(&config_path).with_context(|| {
+                format!("Failed to read config file: {}", config_path.display())
+            })?;
+
+            let config: Config = serde_yaml::from_str(&config_content).with_context(|| {
+                format!("Failed to parse config file: {}", config_path.display())
+            })?;
+
+            return Ok(Some(config));
+        }
+
+        // Stop if we've reached git root (after checking it)
+        if let Some(ref root) = git_root {
+            if dir == root {
+                break;
+            }
+        }
+
+        // Move to parent, or stop if no parent (also handles non-git case)
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => break,
+        }
+
+        // If no git root, don't traverse (only checked current_dir)
+        if git_root.is_none() {
+            break;
+        }
     }
 
-    let config_content = std::fs::read_to_string(&config_path)
-        .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-
-    let config: Config = serde_yaml::from_str(&config_content)
-        .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?;
-
-    Ok(Some(config))
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -185,6 +211,110 @@ command_agents: ["claude", "amp"]
         assert_eq!(
             config.command_agents,
             Some(vec!["claude".to_string(), "amp".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_load_config_from_subdirectory() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create git repo at root
+        fs::create_dir_all(root.join(".git")).unwrap();
+
+        // Create config at root
+        create_config_file(root, "agents: [\"claude\"]\n");
+
+        // Create nested subdirectory (no config)
+        let nested = root.join("src/deep/nested");
+        fs::create_dir_all(&nested).unwrap();
+
+        // Load from nested dir should find root config
+        let result = load_config(&nested).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().agents, Some(vec!["claude".to_string()]));
+    }
+
+    #[test]
+    fn test_load_config_prefers_closer_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create git repo at root
+        fs::create_dir_all(root.join(".git")).unwrap();
+
+        // Create config at root
+        create_config_file(root, "agents: [\"root-agent\"]\n");
+
+        // Create nested dir with its own config
+        let nested = root.join("subproject");
+        fs::create_dir_all(&nested).unwrap();
+        create_config_file(&nested, "agents: [\"nested-agent\"]\n");
+
+        // Load from nested dir should find nested config (not root)
+        let result = load_config(&nested).unwrap();
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().agents,
+            Some(vec!["nested-agent".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_load_config_stops_at_git_root() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create git repo at root (no config here)
+        fs::create_dir_all(root.join(".git")).unwrap();
+
+        // Create nested subdirectory (no config)
+        let nested = root.join("src/nested");
+        fs::create_dir_all(&nested).unwrap();
+
+        // Load from nested dir should return None (no config in git repo)
+        let result = load_config(&nested).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_load_config_no_git_no_traversal() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // No .git directory
+
+        // Create config at root
+        create_config_file(root, "agents: [\"claude\"]\n");
+
+        // Create nested subdirectory (no config)
+        let nested = root.join("src/nested");
+        fs::create_dir_all(&nested).unwrap();
+
+        // Load from nested dir should return None (no traversal without git)
+        let result = load_config(&nested).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_load_config_finds_config_at_git_root() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create git repo at root with config
+        fs::create_dir_all(root.join(".git")).unwrap();
+        create_config_file(root, "agents: [\"git-root-agent\"]\n");
+
+        // Create deeply nested subdirectory
+        let nested = root.join("a/b/c/d/e");
+        fs::create_dir_all(&nested).unwrap();
+
+        // Load from deep nested dir should find git root config
+        let result = load_config(&nested).unwrap();
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().agents,
+            Some(vec!["git-root-agent".to_string()])
         );
     }
 }
