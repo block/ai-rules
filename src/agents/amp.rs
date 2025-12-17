@@ -1,10 +1,12 @@
 use crate::agents::amp_command_generator::AmpCommandGenerator;
 use crate::agents::command_generator::CommandGeneratorTrait;
+use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
-use crate::constants::AGENTS_MD_FILENAME;
+use crate::agents::skills_generator::SkillsGeneratorTrait;
+use crate::constants::{AGENTS_MD_FILENAME, AMP_SKILLS_DIR};
 use crate::models::SourceFile;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
@@ -58,6 +60,10 @@ impl AgentRuleGenerator for AmpGenerator {
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
         Some(Box::new(AmpCommandGenerator))
+    }
+
+    fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
+        Some(Box::new(ExternalSkillsGenerator::new(AMP_SKILLS_DIR)))
     }
 }
 

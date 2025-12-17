@@ -6,6 +6,7 @@ pub mod codex;
 pub mod command_generator;
 pub mod cursor;
 pub mod cursor_command_generator;
+pub mod external_skills_generator;
 pub mod firebender;
 pub mod gemini;
 pub mod mcp_generator;
