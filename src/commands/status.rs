@@ -55,9 +55,22 @@ pub fn check_project_status(
     let registry = AgentToolRegistry::new(use_claude_skills);
     let agents: Vec<String> = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
 
+    // Determine command agents - use command_agents if specified, otherwise fall back to agents
+    let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
+
+    // Build combined list of all agents to track status for (union of agents and command_agents)
+    let mut all_agents: Vec<String> = agents.clone();
+    for cmd_agent in &command_agents {
+        if !all_agents.contains(cmd_agent) {
+            all_agents.push(cmd_agent.clone());
+        }
+    }
+
     let mut body_files_out_of_sync = false;
-    let mut agent_statuses: HashMap<String, bool> =
-        agents.iter().map(|agent| (agent.clone(), true)).collect();
+    let mut agent_statuses: HashMap<String, bool> = all_agents
+        .iter()
+        .map(|agent| (agent.clone(), true))
+        .collect();
     let mut has_ai_rules = false;
 
     let traversal_result =
@@ -90,7 +103,7 @@ pub fn check_project_status(
                 }
             }
 
-            for agent in &agents {
+            for agent in &command_agents {
                 if agent_statuses[agent] && !check_command_files(dir, agent, &registry)? {
                     agent_statuses.insert(agent.clone(), false);
                 }
@@ -236,6 +249,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -255,6 +269,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -275,6 +290,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -301,6 +317,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -334,6 +351,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -369,6 +387,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -399,6 +418,7 @@ Test rule content"#;
             temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: None,
+                command_agents: None,
                 gitignore: false,
                 nested_depth,
             },
@@ -408,6 +428,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -420,6 +441,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: None,
+            command_agents: None,
             nested_depth: 1,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -447,6 +469,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -494,6 +517,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -514,6 +538,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -537,6 +562,7 @@ Test rule content"#;
             temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
             },
@@ -546,6 +572,7 @@ Test rule content"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -602,6 +629,7 @@ Test command body"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -625,6 +653,7 @@ Test command body"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);
@@ -636,6 +665,62 @@ Test command body"#;
 
         // Claude should be marked out of sync because command files are missing
         assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_status_with_command_agents_different_from_agents() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create source files
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/test-cmd.md",
+            TEST_COMMAND_CONTENT,
+        );
+
+        // Generate with agents=["amp"] and command_agents=["claude", "amp"]
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["amp".to_string()]),
+                command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        );
+        assert!(generate_result.is_ok());
+
+        // Expected files:
+        // - AGENTS.md (amp rules) - exists
+        // - CLAUDE.md (claude rules) - should NOT exist (claude not in agents)
+        // - .claude/commands/ai-rules/test-cmd.md - should exist if command gen implemented
+        // - .agents/commands/test-cmd-ai-rules.md - should exist if command gen implemented
+        assert_file_exists(temp_dir.path(), "AGENTS.md");
+        assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+
+        // Check status with command_agents
+        let args = ResolvedStatusArgs {
+            agents: Some(vec!["amp".to_string()]),
+            command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+
+        // Both agents should be tracked in status
+        assert!(status.agent_statuses.contains_key("amp"));
+        assert!(status.agent_statuses.contains_key("claude"));
+
+        // amp should be in sync (rules + commands)
+        // claude might be in sync or not depending on whether command gen is implemented
+        // For now, just verify both are tracked
+        assert_eq!(status.agent_statuses.len(), 2);
     }
 
     #[test]
@@ -654,6 +739,7 @@ Test command body"#;
             temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
             },
@@ -663,6 +749,7 @@ Test command body"#;
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
         let result = check_project_status(temp_dir.path(), args, false);

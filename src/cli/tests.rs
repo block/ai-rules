@@ -7,6 +7,7 @@ use crate::config;
 fn test_generate_args_with_config_cli_priority() {
     let config = config::Config {
         agents: Some(vec!["cursor".to_string()]),
+        command_agents: None,
         gitignore: Some(false),
         no_gitignore: None,
         nested_depth: Some(5),
@@ -31,6 +32,7 @@ fn test_generate_args_with_config_cli_priority() {
 fn test_generate_args_with_config_uses_config_when_cli_missing() {
     let config = config::Config {
         agents: Some(vec!["cursor".to_string()]),
+        command_agents: None,
         gitignore: Some(true),
         no_gitignore: None,
         nested_depth: Some(3),
@@ -71,6 +73,7 @@ fn test_generate_args_with_config_defaults() {
 fn test_generate_args_with_config_partial_config() {
     let config = config::Config {
         agents: Some(vec!["claude".to_string()]),
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: None,
@@ -95,6 +98,7 @@ fn test_generate_args_with_config_partial_config() {
 fn test_nested_depth_args_with_config() {
     let config = config::Config {
         agents: None,
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: Some(4),
@@ -117,6 +121,7 @@ fn test_nested_depth_args_with_config() {
 fn test_nested_depth_explicit_zero_overrides_config() {
     let config = config::Config {
         agents: None,
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: Some(5),
@@ -134,6 +139,7 @@ fn test_nested_depth_explicit_zero_overrides_config() {
 fn test_status_args_with_config_cli_priority() {
     let config = config::Config {
         agents: Some(vec!["cursor".to_string()]),
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: Some(5),
@@ -157,6 +163,7 @@ fn test_status_args_with_config_cli_priority() {
 fn test_status_args_with_config_uses_config_when_cli_missing() {
     let config = config::Config {
         agents: Some(vec!["cursor".to_string()]),
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: Some(3),
@@ -191,6 +198,7 @@ fn test_status_args_with_config_defaults() {
 fn test_generate_args_backward_compat_no_gitignore_config() {
     let config = config::Config {
         agents: None,
+        command_agents: None,
         gitignore: None,
         no_gitignore: Some(true),
         nested_depth: None,
@@ -213,6 +221,7 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
 fn test_generate_args_backward_compat_no_gitignore_cli() {
     let config = config::Config {
         agents: None,
+        command_agents: None,
         gitignore: Some(true),
         no_gitignore: None,
         nested_depth: None,
@@ -235,6 +244,7 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
 fn test_generate_args_new_gitignore_flag_overrides_old() {
     let config = config::Config {
         agents: None,
+        command_agents: None,
         gitignore: None,
         no_gitignore: None,
         nested_depth: None,

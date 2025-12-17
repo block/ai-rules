@@ -116,6 +116,7 @@ pub struct CleanArgs {
 #[derive(Debug, Clone)]
 pub struct ResolvedGenerateArgs {
     pub agents: Option<Vec<String>>,
+    pub command_agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
 }
@@ -123,5 +124,6 @@ pub struct ResolvedGenerateArgs {
 #[derive(Debug)]
 pub struct ResolvedStatusArgs {
     pub agents: Option<Vec<String>>,
+    pub command_agents: Option<Vec<String>>,
     pub nested_depth: usize,
 }

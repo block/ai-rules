@@ -158,6 +158,7 @@ Test rule content"#;
             project_path,
             crate::cli::ResolvedGenerateArgs {
                 agents: None,
+                command_agents: None,
                 gitignore: false,
                 nested_depth: 2,
             },
@@ -207,6 +208,7 @@ Test rule content"#;
                     "cursor".to_string(),
                     "roo".to_string(),
                 ]),
+                command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
             },
