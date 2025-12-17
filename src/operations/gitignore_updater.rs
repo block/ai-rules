@@ -36,6 +36,15 @@ fn collect_all_gitignore_patterns(
         .collect();
     base_patterns.extend(command_patterns);
 
+    let skill_patterns: Vec<String> = registry
+        .get_all_tool_names()
+        .iter()
+        .filter_map(|name| registry.get_tool(name.as_str()))
+        .filter_map(|tool| tool.skills_generator())
+        .flat_map(|skills_gen| skills_gen.skills_gitignore_patterns())
+        .collect();
+    base_patterns.extend(skill_patterns);
+
     let base_pattern = Path::new(AI_RULE_SOURCE_DIR)
         .join(GENERATED_RULE_BODY_DIR)
         .display()
@@ -283,5 +292,31 @@ build/
 
         let content = fs::read_to_string(&gitignore_path).unwrap();
         assert_eq!(content, "# Existing content\n*.old\n");
+    }
+
+    #[test]
+    fn test_gitignore_includes_skill_patterns() {
+        let registry = AgentToolRegistry::new(false);
+        let patterns = collect_all_gitignore_patterns(&registry, 1);
+
+        // Check that skill patterns are included for agents that support skills
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.contains(".claude/skills/ai-rules-generated-")),
+            "Should include Claude skill pattern"
+        );
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.contains(".codex/skills/ai-rules-generated-")),
+            "Should include Codex skill pattern"
+        );
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.contains(".agents/skills/ai-rules-generated-")),
+            "Should include AMP skill pattern"
+        );
     }
 }
