@@ -1,7 +1,10 @@
 
 # AI Rules - Generated Files
 **/.agents/commands/*-ai-rules.md
+**/.agents/skills/ai-rules-generated-*/
 **/.claude/commands/ai-rules/
+**/.claude/skills/ai-rules-generated-*/
+**/.codex/skills/ai-rules-generated-*/
 **/.cursor/commands/ai-rules/
 **/.cursor/mcp.json
 **/.cursor/rules/
