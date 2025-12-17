@@ -2,6 +2,7 @@ pub mod amp;
 pub mod amp_command_generator;
 pub mod claude;
 pub mod claude_command_generator;
+pub mod codex;
 pub mod command_generator;
 pub mod cursor;
 pub mod cursor_command_generator;

@@ -1,6 +1,6 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::{
-    amp::AmpGenerator, claude::ClaudeGenerator, cursor::CursorGenerator,
+    amp::AmpGenerator, claude::ClaudeGenerator, codex::CodexGenerator, cursor::CursorGenerator,
     firebender::FirebenderGenerator, gemini::GeminiGenerator, roo::RooGenerator,
     single_file_based::SingleFileBasedGenerator,
 };
@@ -29,7 +29,7 @@ impl AgentToolRegistry {
             Box::new(FirebenderGenerator),
             Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
             Box::new(AmpGenerator),
-            Box::new(SingleFileBasedGenerator::new("codex", AGENTS_MD_FILENAME)),
+            Box::new(CodexGenerator::new()),
             Box::new(SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME)),
             Box::new(GeminiGenerator),
             Box::new(SingleFileBasedGenerator::new(
