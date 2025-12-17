@@ -111,6 +111,18 @@ fn generate_files(
     }
     write_directory_files(&command_files_to_write)?;
 
+    // Generate skill symlinks
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            if let Some(skills_gen) = tool.skills_generator() {
+                let skill_symlinks = skills_gen.generate_skills(current_dir)?;
+                for symlink_path in skill_symlinks {
+                    result.add_file(agent, symlink_path);
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -841,5 +853,87 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), ".claude/commands/ai-rules/my-command.md");
         assert_file_not_exists(temp_dir.path(), "AGENTS.md");
         assert_file_not_exists(temp_dir.path(), ".agents/commands/my-command-ai-rules.md");
+    }
+
+    #[test]
+    fn test_generate_creates_skill_symlinks_for_claude() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a user-defined skill
+        create_file(
+            temp_dir.path(),
+            "ai-rules/skills/my-skill/SKILL.md",
+            "---\nname: my-skill\ndescription: My custom skill\n---\n\nSkill instructions",
+        );
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Verify skill symlink was created
+        let symlink_path = temp_dir
+            .path()
+            .join(".claude/skills/ai-rules-generated-my-skill");
+        assert!(symlink_path.exists(), "Skill symlink should exist");
+        assert!(symlink_path.is_symlink(), "Should be a symlink");
+
+        // Verify symlink points to correct location
+        let target = std::fs::read_link(&symlink_path).unwrap();
+        assert!(target
+            .to_string_lossy()
+            .contains("ai-rules/skills/my-skill"));
+    }
+
+    #[test]
+    fn test_generate_creates_skill_symlinks_for_amp() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a user-defined skill
+        create_file(
+            temp_dir.path(),
+            "ai-rules/skills/amp-skill/SKILL.md",
+            "---\nname: amp-skill\ndescription: AMP skill\n---\n\nSkill for AMP",
+        );
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["amp".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Verify skill symlink was created in .agents/skills/
+        let symlink_path = temp_dir
+            .path()
+            .join(".agents/skills/ai-rules-generated-amp-skill");
+        assert!(symlink_path.exists(), "Skill symlink should exist");
+        assert!(symlink_path.is_symlink(), "Should be a symlink");
+    }
+
+    #[test]
+    fn test_generate_no_skills_when_no_source_folder() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create rule but NO skills folder
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        // Verify no skill symlinks created (skills directory shouldn't exist)
+        assert_file_not_exists(temp_dir.path(), ".claude/skills/");
     }
 }
