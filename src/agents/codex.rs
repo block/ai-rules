@@ -1,8 +1,10 @@
+use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
-use crate::constants::AGENTS_MD_FILENAME;
+use crate::agents::skills_generator::SkillsGeneratorTrait;
+use crate::constants::{AGENTS_MD_FILENAME, CODEX_SKILLS_DIR};
 use crate::models::SourceFile;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
@@ -70,6 +72,10 @@ impl AgentRuleGenerator for CodexGenerator {
         } else {
             Ok(vec![])
         }
+    }
+
+    fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
+        Some(Box::new(ExternalSkillsGenerator::new(CODEX_SKILLS_DIR)))
     }
 }
 
