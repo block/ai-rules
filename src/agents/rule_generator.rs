@@ -1,5 +1,6 @@
 use crate::agents::command_generator::CommandGeneratorTrait;
 use crate::agents::mcp_generator::McpGeneratorTrait;
+use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::models::SourceFile;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -30,6 +31,15 @@ pub trait AgentRuleGenerator {
     }
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
+        None
+    }
+
+    /// Returns a skills generator for creating user-defined skill symlinks.
+    ///
+    /// Agents that support skills (like Claude, Codex, AMP) should override this
+    /// to return their skills generator. The default returns `None` (no skills support).
+    #[allow(dead_code)]
+    fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
         None
     }
 }
