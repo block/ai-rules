@@ -22,6 +22,7 @@ CLI tool to manage AI rules across different AI coding agents. Standardize and d
   - [Firebender Overlay Support](#firebender-overlay-support)
   - [Custom Commands Support](#custom-commands-support)
   - [Claude Code Skills Support](#claude-code-skills-support)
+  - [User-Defined Skills](#user-defined-skills)
 - [Project Structure](#project-structure)
   - [Standard Mode](#standard-mode)
   - [Symlink Mode](#symlink-mode)
@@ -152,12 +153,14 @@ See [Configuration](#configuration) section for setting defaults.
 **Generates:**
 
 **Standard Mode** (when `ai-rules/*.md` files have YAML frontmatter):
-- Rules files for AI coding agents (see [Supported AI Coding Agents](#supported-ai-coding-agents)) 
+- Rules files for AI coding agents (see [Supported AI Coding Agents](#supported-ai-coding-agents))
 - `ai-rules/.generated-ai-rules/` - Directory with extracted rule content files, referenced by coding agent rule files
+- Skill symlinks from `ai-rules/skills/` to agent skill directories
 - Updates `.gitignore` with generated files (only if `--gitignore` is specified)
 
 **Symlink Mode** (when only `AGENTS.md` exists in `ai-rules/` without frontmatter):
 - Symlinks pointing directly to `ai-rules/AGENTS.md` for supported agents
+- Skill symlinks from `ai-rules/skills/` to agent skill directories
 - No `ai-rules/.generated-ai-rules/` directory created
 - Updates `.gitignore` with symlink files (only if `--gitignore` is specified)
 
@@ -367,6 +370,42 @@ alwaysApply: false
 
 **Note:** Skills use the `description` field as the skill name for better discoverability. The directory name uses the source file's base filename.
 
+### User-Defined Skills
+
+You can define custom skill folders that are symlinked to supported agents' skill directories during generation. This allows you to create reusable skills that contain multiple files or complex structures.
+
+**Setup:**
+
+Create skill folders in `ai-rules/skills/<skill-name>/` with a `SKILL.md` file:
+
+```
+ai-rules/
+├── skills/
+│   └── debugging/
+│       └── SKILL.md    # Required - defines the skill
+```
+
+**SKILL.md Format:**
+```markdown
+---
+name: debugging
+description: Debugging guidelines and best practices
+---
+
+# Debugging Guidelines
+
+Your skill content here...
+```
+
+When you run `ai-rules generate`, symlinks are created in the agent's skills directory:
+- `.agents/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (AMP)
+- `.claude/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (Claude)
+- `.codex/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (Codex)
+
+**Supported Agents:** AMP, Claude Code, Codex
+
+**Note:** Skill folders without a `SKILL.md` file are skipped with a warning.
+
 ## Project Structure
 
 ### Standard Mode
@@ -377,6 +416,9 @@ monorepo/
 │   ├── .generated-ai-rules/  # Root processed files
 │   ├── commands/         # Custom commands (slash commands)
 │   │   └── commit.md     # Example command
+│   ├── skills/           # User-defined skills (symlinked to agents)
+│   │   └── debugging/    # Example skill folder
+│   │       └── SKILL.md  # Skill definition
 │   ├── general.md        # Repository-wide rules
 │   └── mcp.json          # MCP server configuration
 ├── frontend/              # Frontend application
@@ -439,6 +481,9 @@ project/
 │   ├── AGENTS.md          # Source file
 │   ├── commands/          # Custom commands (optional)
 │   │   └── commit.md      # Example command
+│   ├── skills/            # User-defined skills (optional)
+│   │   └── debugging/     # Example skill folder
+│   │       └── SKILL.md   # Skill definition
 │   └── mcp.json           # MCP config (optional)
 ├── CLAUDE.md              # Symlink → ai-rules/AGENTS.md
 ├── GEMINI.md              # Symlink → ai-rules/AGENTS.md
