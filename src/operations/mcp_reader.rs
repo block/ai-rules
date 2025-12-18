@@ -7,6 +7,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum McpServerType {
+    Http,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpConfig {
@@ -14,12 +20,22 @@ pub struct McpConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct McpServerConfig {
-    pub command: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub args: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub env: Option<HashMap<String, String>>,
+#[serde(untagged)]
+pub enum McpServerConfig {
+    Command {
+        command: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        args: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        env: Option<HashMap<String, String>>,
+    },
+    Http {
+        #[serde(rename = "type")]
+        server_type: McpServerType,
+        url: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        headers: Option<HashMap<String, String>>,
+    },
 }
 
 fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
@@ -65,6 +81,15 @@ mod tests {
     "test-server": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-test"]
+    }
+  }
+}"#;
+
+    const TEST_HTTP_MCP_CONFIG: &str = r#"{
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
     }
   }
 }"#;
@@ -226,5 +251,104 @@ mod tests {
         let result = read_mcp_config(temp_dir.path());
         assert!(result.is_ok());
         assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn test_read_mcp_config_http_server() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_HTTP_MCP_CONFIG);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let content = result.unwrap();
+        assert!(content.contains("mcpServers"));
+        assert!(content.contains("figma"));
+        assert!(content.ends_with('\n'));
+    }
+
+    #[test]
+    fn test_extract_mcp_servers_for_firebender_http() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_HTTP_MCP_CONFIG);
+
+        let result = extract_mcp_servers_for_firebender(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+
+        let servers = result.unwrap();
+        assert!(servers.is_object());
+        assert!(servers.get("figma").is_some());
+
+        let figma_server = servers.get("figma").unwrap();
+        assert_eq!(
+            figma_server.get("url").unwrap().as_str().unwrap(),
+            "https://mcp.figma.com/mcp"
+        );
+    }
+
+    #[test]
+    fn test_read_mcp_config_http_with_headers() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_with_headers = r#"{
+  "mcpServers": {
+    "api-server": {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer token123",
+        "X-Custom-Header": "custom-value"
+      }
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", config_with_headers);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let content = result.unwrap();
+        assert!(content.contains("Authorization"));
+        assert!(content.contains("Bearer token123"));
+    }
+
+    #[test]
+    fn test_read_mcp_config_mixed_command_and_http() {
+        let temp_dir = TempDir::new().unwrap();
+        let mixed_config = r#"{
+  "mcpServers": {
+    "local-server": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-test"]
+    },
+    "remote-server": {
+      "type": "http",
+      "url": "https://remote.example.com/mcp"
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", mixed_config);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let content = result.unwrap();
+        assert!(content.contains("local-server"));
+        assert!(content.contains("remote-server"));
+        assert!(content.contains("npx"));
+        assert!(content.contains("https://remote.example.com/mcp"));
+    }
+
+    #[test]
+    fn test_read_mcp_config_invalid_type() {
+        let temp_dir = TempDir::new().unwrap();
+        let invalid_config = r#"{
+  "mcpServers": {
+    "bad-server": {
+      "type": "invalid-type",
+      "url": "https://example.com/mcp"
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", invalid_config);
+
+        let result = read_mcp_config(temp_dir.path());
+        assert!(result.is_err());
     }
 }

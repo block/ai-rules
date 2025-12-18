@@ -270,6 +270,10 @@ Create `ai-rules/mcp.json` with your MCP server configurations:
       "env": {
         "ENV_VAR": "${use_environment_variable}"
       }
+    },
+    "remote-server-name": {
+      "type": "http",
+      "url": "https://api.example.com/mcp"
     }
   }
 }
