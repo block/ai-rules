@@ -67,6 +67,11 @@ pub struct GenerateArgs {
         help = "Maximum nested directory depth to traverse (0 = current directory only)"
     )]
     pub nested_depth: Option<usize>,
+    #[arg(
+        long,
+        help = "Do not follow symlinks when discovering markdown files (symlinks are followed by default)"
+    )]
+    pub no_follow_symlinks: bool,
 }
 
 #[derive(Args)]
@@ -119,6 +124,7 @@ pub struct ResolvedGenerateArgs {
     pub command_agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
+    pub follow_symlinks: bool,
 }
 
 #[derive(Debug)]

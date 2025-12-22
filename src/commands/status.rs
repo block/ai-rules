@@ -80,7 +80,7 @@ pub fn check_project_status(
             if is_symlink_mode {
                 has_ai_rules = true;
             } else {
-                source_files = operations::find_source_files(dir)?;
+                source_files = operations::find_source_files(dir, true)?;
                 if !source_files.is_empty() {
                     has_ai_rules = true;
                 }
@@ -441,6 +441,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth,
+                follow_symlinks: true,
             },
             false,
         )
@@ -585,6 +586,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );
@@ -707,6 +709,7 @@ Test command body"#;
                 command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );
@@ -762,6 +765,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );
@@ -843,6 +847,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );
@@ -878,6 +883,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );
@@ -918,6 +924,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                            follow_symlinks: true,
             },
             false,
         );

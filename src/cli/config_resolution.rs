@@ -56,6 +56,7 @@ impl GenerateArgs {
             command_agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
+            follow_symlinks: !self.no_follow_symlinks,
         }
     }
 }
