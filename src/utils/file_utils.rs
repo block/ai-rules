@@ -17,14 +17,24 @@ pub fn ensure_trailing_newline(content: impl Into<String>) -> String {
     }
 }
 
-pub fn find_files_by_extension(dir: &Path, extension: &str) -> Result<Vec<PathBuf>> {
+pub fn find_files_by_extension(
+    dir: &Path,
+    extension: &str,
+    follow_symlinks: bool,
+) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().is_some_and(|ext| ext == extension) {
+        let metadata = if follow_symlinks {
+            fs::metadata(&path)?
+        } else {
+            entry.metadata()?
+        };
+
+        if metadata.is_file() && path.extension().is_some_and(|ext| ext == extension) {
             files.push(path);
         }
     }
@@ -264,13 +274,13 @@ mod tests {
         fs::write(temp_path.join("test3.rs"), "content3").unwrap();
         fs::write(temp_path.join("no_extension"), "content4").unwrap();
 
-        let txt_files = find_files_by_extension(temp_path, "txt").unwrap();
+        let txt_files = find_files_by_extension(temp_path, "txt", true).unwrap();
         assert_eq!(txt_files.len(), 2);
 
-        let rs_files = find_files_by_extension(temp_path, "rs").unwrap();
+        let rs_files = find_files_by_extension(temp_path, "rs", true).unwrap();
         assert_eq!(rs_files.len(), 1);
 
-        let nonexistent_files = find_files_by_extension(temp_path, "xyz").unwrap();
+        let nonexistent_files = find_files_by_extension(temp_path, "xyz", true).unwrap();
         assert_eq!(nonexistent_files.len(), 0);
     }
 
@@ -298,7 +308,7 @@ mod tests {
         fs::write(temp_path.join("10-tenth.md"), "content").unwrap();
         fs::write(temp_path.join("02-second.md"), "content").unwrap();
 
-        let md_files = find_files_by_extension(temp_path, "md").unwrap();
+        let md_files = find_files_by_extension(temp_path, "md", true).unwrap();
         assert_eq!(md_files.len(), 9);
 
         // Extract just the filenames for easier assertion
@@ -576,5 +586,65 @@ mod tests {
 
         let result = check_agents_md_symlink(temp_path, &symlink_path).unwrap();
         assert!(!result);
+    }
+
+    #[test]
+    fn test_find_files_by_extension_with_symlinks_enabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join("regular.md"), "regular file").unwrap();
+        fs::write(temp_path.join("target.md"), "target file").unwrap();
+        symlink(temp_path.join("target.md"), temp_path.join("link.md")).unwrap();
+
+        let md_files = find_files_by_extension(temp_path, "md", true).unwrap();
+        assert_eq!(md_files.len(), 3);
+
+        let filenames: Vec<String> = md_files
+            .iter()
+            .filter_map(|p| p.file_name())
+            .filter_map(|n| n.to_str())
+            .map(|s| s.to_string())
+            .collect();
+
+        assert!(filenames.contains(&"regular.md".to_string()));
+        assert!(filenames.contains(&"target.md".to_string()));
+        assert!(filenames.contains(&"link.md".to_string()));
+    }
+
+    #[test]
+    fn test_find_files_by_extension_with_symlinks_disabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join("regular.md"), "regular file").unwrap();
+        fs::write(temp_path.join("target.md"), "target file").unwrap();
+        symlink(temp_path.join("target.md"), temp_path.join("link.md")).unwrap();
+
+        let md_files = find_files_by_extension(temp_path, "md", false).unwrap();
+        assert_eq!(md_files.len(), 2);
+
+        let filenames: Vec<String> = md_files
+            .iter()
+            .filter_map(|p| p.file_name())
+            .filter_map(|n| n.to_str())
+            .map(|s| s.to_string())
+            .collect();
+
+        assert!(filenames.contains(&"regular.md".to_string()));
+        assert!(filenames.contains(&"target.md".to_string()));
+        assert!(!filenames.contains(&"link.md".to_string()));
+    }
+
+    #[test]
+    fn test_find_files_by_extension_with_broken_symlink() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join("regular.md"), "regular file").unwrap();
+        symlink("nonexistent.md", temp_path.join("broken_link.md")).unwrap();
+
+        let result = find_files_by_extension(temp_path, "md", true);
+        assert!(result.is_err());
     }
 }
