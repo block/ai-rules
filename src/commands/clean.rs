@@ -161,7 +161,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: 2,
-            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -212,7 +212,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
-            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -329,7 +329,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
-            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -377,7 +377,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
-            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );

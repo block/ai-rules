@@ -586,7 +586,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -709,7 +709,7 @@ Test command body"#;
                 command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -765,7 +765,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -847,7 +847,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -883,7 +883,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );
@@ -924,7 +924,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
-                            follow_symlinks: true,
+                follow_symlinks: true,
             },
             false,
         );

@@ -72,7 +72,8 @@ fn generate_files(
             }
         }
     } else {
-        let file_collection = collect_all_files_for_directory(current_dir, agents, registry, follow_symlinks)?;
+        let file_collection =
+            collect_all_files_for_directory(current_dir, agents, registry, follow_symlinks)?;
 
         for (agent, file_paths) in file_collection.files_by_agent {
             for file_path in file_paths {
