@@ -35,6 +35,7 @@ impl AgentRuleGenerator for GeminiGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         generate_agent_file_contents(source_files, current_dir, GEMINI_AGENT_FILE)
     }
@@ -43,6 +44,7 @@ impl AgentRuleGenerator for GeminiGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        _follow_symlinks: bool,
     ) -> Result<bool> {
         check_in_sync(source_files, current_dir, GEMINI_AGENT_FILE)
     }

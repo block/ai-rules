@@ -5,13 +5,13 @@ use std::path::{Path, PathBuf};
 pub trait CommandGeneratorTrait {
     /// Generate command files for this agent
     /// Returns HashMap of output path -> content
-    fn generate_commands(&self, current_dir: &Path) -> HashMap<PathBuf, String>;
+    fn generate_commands(&self, current_dir: &Path, follow_symlinks: bool) -> HashMap<PathBuf, String>;
 
     /// Clean generated command files
     fn clean_commands(&self, current_dir: &Path) -> Result<()>;
 
     /// Check if command files are in sync
-    fn check_commands(&self, current_dir: &Path) -> Result<bool>;
+    fn check_commands(&self, current_dir: &Path, follow_symlinks: bool) -> Result<bool>;
 
     /// Get gitignore patterns for generated commands
     #[allow(dead_code)]

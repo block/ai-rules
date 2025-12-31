@@ -42,6 +42,7 @@ impl AgentRuleGenerator for CursorGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         let mut agent_files = HashMap::new();
 
@@ -71,6 +72,7 @@ impl AgentRuleGenerator for CursorGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        follow_symlinks: bool,
     ) -> Result<bool> {
         let cursor_rules_dir = get_cursor_rules_dir(current_dir);
 
@@ -78,7 +80,7 @@ impl AgentRuleGenerator for CursorGenerator {
             return Ok(!cursor_rules_dir.exists());
         }
 
-        let expected_files = self.generate_agent_contents(source_files, current_dir);
+        let expected_files = self.generate_agent_contents(source_files, current_dir, follow_symlinks);
 
         check_directory_exact_match(&cursor_rules_dir, &expected_files)
     }
@@ -225,7 +227,7 @@ alwaysApply: true
             ),
         ];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         assert_eq!(result.len(), 2);
 
@@ -332,7 +334,7 @@ rule2 body
         );
 
         let result = generator
-            .check_agent_contents(&[], temp_dir.path())
+            .check_agent_contents(&[], temp_dir.path(), true)
             .unwrap();
 
         assert!(!result);
@@ -351,7 +353,7 @@ rule2 body
         );
 
         let result = generator
-            .check_agent_contents(&[source_file], temp_dir.path())
+            .check_agent_contents(&[source_file], temp_dir.path(), true)
             .unwrap();
 
         assert!(result);
@@ -364,7 +366,7 @@ rule2 body
         let source_file = create_standard_test_source_file();
 
         let result = generator
-            .check_agent_contents(&[source_file], temp_dir.path())
+            .check_agent_contents(&[source_file], temp_dir.path(), true)
             .unwrap();
 
         assert!(!result);
@@ -383,7 +385,7 @@ rule2 body
         );
 
         let result = generator
-            .check_agent_contents(&[source_file], temp_dir.path())
+            .check_agent_contents(&[source_file], temp_dir.path(), true)
             .unwrap();
 
         assert!(!result);

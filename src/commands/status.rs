@@ -91,7 +91,7 @@ pub fn check_project_status(
 
             for agent in &agents {
                 if agent_statuses[agent]
-                    && !check_agent_files(dir, agent, &source_files, &registry, is_symlink_mode)?
+                    && !check_agent_files(dir, agent, &source_files, &registry, is_symlink_mode, true)?
                 {
                     agent_statuses.insert(agent.clone(), false);
                 }
@@ -104,7 +104,7 @@ pub fn check_project_status(
             }
 
             for agent in &command_agents {
-                if agent_statuses[agent] && !check_command_files(dir, agent, &registry)? {
+                if agent_statuses[agent] && !check_command_files(dir, agent, &registry, true)? {
                     agent_statuses.insert(agent.clone(), false);
                 }
             }
@@ -152,6 +152,7 @@ fn check_agent_files(
     source_files: &[SourceFile],
     registry: &AgentToolRegistry,
     is_symlink_mode: bool,
+    follow_symlinks: bool,
 ) -> Result<bool> {
     let Some(tool) = registry.get_tool(agent_name) else {
         return Ok(true);
@@ -159,7 +160,7 @@ fn check_agent_files(
     if is_symlink_mode {
         return tool.check_symlink(current_dir);
     }
-    tool.check_agent_contents(source_files, current_dir)
+    tool.check_agent_contents(source_files, current_dir, follow_symlinks)
 }
 
 fn check_mcp_files(
@@ -180,6 +181,7 @@ fn check_command_files(
     current_dir: &Path,
     agent_name: &str,
     registry: &AgentToolRegistry,
+    follow_symlinks: bool,
 ) -> Result<bool> {
     let Some(tool) = registry.get_tool(agent_name) else {
         return Ok(true);
@@ -187,7 +189,7 @@ fn check_command_files(
     let Some(cmd_gen) = tool.command_generator() else {
         return Ok(true);
     };
-    cmd_gen.check_commands(current_dir)
+    cmd_gen.check_commands(current_dir, follow_symlinks)
 }
 
 fn check_skill_files(

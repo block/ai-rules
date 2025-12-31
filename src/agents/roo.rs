@@ -44,17 +44,19 @@ impl AgentRuleGenerator for RooGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         self.inner
-            .generate_agent_contents(source_files, current_dir)
+            .generate_agent_contents(source_files, current_dir, _follow_symlinks)
     }
 
     fn check_agent_contents(
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
+        _follow_symlinks: bool,
     ) -> Result<bool> {
-        self.inner.check_agent_contents(source_files, current_dir)
+        self.inner.check_agent_contents(source_files, current_dir, _follow_symlinks)
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {

@@ -560,6 +560,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_check_agents_md_symlink_wrong_target() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -577,6 +578,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_check_agents_md_symlink_missing_source() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -589,6 +591,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_find_files_by_extension_with_symlinks_enabled() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -613,6 +616,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_find_files_by_extension_with_symlinks_disabled() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -637,6 +641,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_find_files_by_extension_with_broken_symlink() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
