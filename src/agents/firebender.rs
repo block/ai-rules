@@ -417,7 +417,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let source_files = vec![create_standard_test_source_file()];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join(FIREBENDER_JSON);
@@ -460,7 +460,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         let result = generator
-            .check_agent_contents(&[], temp_dir.path())
+            .check_agent_contents(&[], temp_dir.path(), true)
             .unwrap();
 
         assert!(result);
@@ -474,7 +474,7 @@ mod tests {
         create_file(temp_dir.path(), FIREBENDER_JSON, "stale content");
 
         let result = generator
-            .check_agent_contents(&[], temp_dir.path())
+            .check_agent_contents(&[], temp_dir.path(), true)
             .unwrap();
 
         assert!(!result);
@@ -495,7 +495,7 @@ mod tests {
         create_file(temp_dir.path(), FIREBENDER_JSON, &expected_content);
 
         let result = generator
-            .check_agent_contents(&[source_file], temp_dir.path())
+            .check_agent_contents(&[source_file], temp_dir.path(), true)
             .unwrap();
 
         assert!(result);
@@ -510,7 +510,7 @@ mod tests {
         create_file(temp_dir.path(), FIREBENDER_JSON, "wrong content");
 
         let result = generator
-            .check_agent_contents(&[source_file], temp_dir.path())
+            .check_agent_contents(&[source_file], temp_dir.path(), true)
             .unwrap();
 
         assert!(!result);
@@ -697,7 +697,7 @@ mod tests {
         std::fs::create_dir_all(&ai_rules_dir).unwrap();
         create_file(&ai_rules_dir, FIREBENDER_OVERLAY_JSON, "{ invalid json");
 
-        let result = generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()));
+        let result = generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -725,7 +725,7 @@ mod tests {
         std::fs::create_dir_all(&ai_rules_dir).unwrap();
         create_file(&ai_rules_dir, FIREBENDER_OVERLAY_JSON, "{ malformed json");
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         assert!(result.is_empty());
     }
@@ -802,7 +802,7 @@ mod tests {
 
         let source_files = vec![create_standard_test_source_file()];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         assert_eq!(result.len(), 1);
         let firebender_path = temp_dir.path().join("firebender.json");
@@ -830,7 +830,7 @@ mod tests {
 
         let source_files = vec![create_standard_test_source_file()];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         assert_eq!(result.len(), 1);
         let firebender_path = temp_dir.path().join("firebender.json");
@@ -866,7 +866,7 @@ mod tests {
 
         let source_files = vec![create_standard_test_source_file()];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
 
         let firebender_path = temp_dir.path().join("firebender.json");
         let content = result.get(&firebender_path).unwrap();

@@ -106,7 +106,7 @@ mod tests {
 
         let generator = AmpGenerator;
         let cmd_gen = generator.command_generator().unwrap();
-        let files = cmd_gen.generate_commands(temp_dir.path());
+        let files = cmd_gen.generate_commands(temp_dir.path(), true);
 
         assert_eq!(files.len(), 1);
 

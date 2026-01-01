@@ -105,7 +105,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let generator = ClaudeCommandGenerator;
 
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         assert_eq!(files.len(), 0);
     }
 
@@ -120,7 +120,7 @@ mod tests {
         fs::write(commands_dir.join("test.md"), command_content).unwrap();
 
         let generator = ClaudeCommandGenerator;
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
 
         assert_eq!(files.len(), 1);
         let output_path = temp_dir
@@ -180,10 +180,10 @@ mod tests {
         let generator = ClaudeCommandGenerator;
 
         // Not in sync initially
-        assert!(!generator.check_commands(temp_dir.path()).unwrap());
+        assert!(!generator.check_commands(temp_dir.path(), true).unwrap());
 
         // Generate files
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         for (path, content) in files {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).unwrap();
@@ -192,7 +192,7 @@ mod tests {
         }
 
         // Now in sync
-        assert!(generator.check_commands(temp_dir.path()).unwrap());
+        assert!(generator.check_commands(temp_dir.path(), true).unwrap());
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
         fs::write(source_commands_dir.join("test.md"), "Test").unwrap();
 
         let generator = ClaudeCommandGenerator;
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         for (path, content) in files {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).unwrap();
@@ -218,7 +218,7 @@ mod tests {
         fs::write(target_commands_subdir.join("extra.md"), "extra").unwrap();
 
         // Should detect out of sync
-        assert!(!generator.check_commands(temp_dir.path()).unwrap());
+        assert!(!generator.check_commands(temp_dir.path(), true).unwrap());
     }
 
     #[test]
