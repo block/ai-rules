@@ -10,10 +10,14 @@ use std::path::{Path, PathBuf};
 pub struct ClaudeCommandGenerator;
 
 impl CommandGeneratorTrait for ClaudeCommandGenerator {
-    fn generate_commands(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
+    fn generate_commands(
+        &self,
+        current_dir: &Path,
+        follow_symlinks: bool,
+    ) -> HashMap<PathBuf, String> {
         let mut files = HashMap::new();
 
-        let command_files = match find_command_files(current_dir) {
+        let command_files = match find_command_files(current_dir, follow_symlinks) {
             Ok(files) => files,
             Err(_) => return files,
         };
@@ -48,8 +52,8 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
         Ok(())
     }
 
-    fn check_commands(&self, current_dir: &Path) -> Result<bool> {
-        let command_files = find_command_files(current_dir)?;
+    fn check_commands(&self, current_dir: &Path, follow_symlinks: bool) -> Result<bool> {
+        let command_files = find_command_files(current_dir, follow_symlinks)?;
         let commands_subdir = current_dir
             .join(CLAUDE_COMMANDS_DIR)
             .join(GENERATED_COMMANDS_SUBDIR);
@@ -60,7 +64,7 @@ impl CommandGeneratorTrait for ClaudeCommandGenerator {
         }
 
         // Check all expected files exist with correct content
-        let expected_files = self.generate_commands(current_dir);
+        let expected_files = self.generate_commands(current_dir, follow_symlinks);
         for (path, expected_content) in &expected_files {
             if !path.exists() {
                 return Ok(false);
@@ -105,7 +109,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let generator = ClaudeCommandGenerator;
 
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         assert_eq!(files.len(), 0);
     }
 
@@ -120,7 +124,7 @@ mod tests {
         fs::write(commands_dir.join("test.md"), command_content).unwrap();
 
         let generator = ClaudeCommandGenerator;
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
 
         assert_eq!(files.len(), 1);
         let output_path = temp_dir
@@ -180,10 +184,10 @@ mod tests {
         let generator = ClaudeCommandGenerator;
 
         // Not in sync initially
-        assert!(!generator.check_commands(temp_dir.path()).unwrap());
+        assert!(!generator.check_commands(temp_dir.path(), true).unwrap());
 
         // Generate files
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         for (path, content) in files {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).unwrap();
@@ -192,7 +196,7 @@ mod tests {
         }
 
         // Now in sync
-        assert!(generator.check_commands(temp_dir.path()).unwrap());
+        assert!(generator.check_commands(temp_dir.path(), true).unwrap());
     }
 
     #[test]
@@ -206,7 +210,7 @@ mod tests {
         fs::write(source_commands_dir.join("test.md"), "Test").unwrap();
 
         let generator = ClaudeCommandGenerator;
-        let files = generator.generate_commands(temp_dir.path());
+        let files = generator.generate_commands(temp_dir.path(), true);
         for (path, content) in files {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).unwrap();
@@ -218,7 +222,7 @@ mod tests {
         fs::write(target_commands_subdir.join("extra.md"), "extra").unwrap();
 
         // Should detect out of sync
-        assert!(!generator.check_commands(temp_dir.path()).unwrap());
+        assert!(!generator.check_commands(temp_dir.path(), true).unwrap());
     }
 
     #[test]

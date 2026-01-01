@@ -9,18 +9,18 @@ pub fn get_ai_rules_dir(current_dir: &Path) -> PathBuf {
     current_dir.join(AI_RULE_SOURCE_DIR)
 }
 
-fn get_md_files_in_ai_rules_dir(current_dir: &Path) -> Result<Vec<PathBuf>> {
+fn get_md_files_in_ai_rules_dir(current_dir: &Path, follow_symlinks: bool) -> Result<Vec<PathBuf>> {
     let ai_rules_dir = get_ai_rules_dir(current_dir);
 
     if !ai_rules_dir.exists() || !ai_rules_dir.is_dir() {
         return Ok(Vec::new());
     }
 
-    find_files_by_extension(&ai_rules_dir, MD_EXTENSION)
+    find_files_by_extension(&ai_rules_dir, MD_EXTENSION, follow_symlinks)
 }
 
-pub fn find_source_files(current_dir: &Path) -> Result<Vec<SourceFile>> {
-    let source_files = get_md_files_in_ai_rules_dir(current_dir)?;
+pub fn find_source_files(current_dir: &Path, follow_symlinks: bool) -> Result<Vec<SourceFile>> {
+    let source_files = get_md_files_in_ai_rules_dir(current_dir, follow_symlinks)?;
     if source_files.is_empty() {
         return Ok(Vec::new());
     }
@@ -38,7 +38,7 @@ fn parse_source_files(original_source_files: Vec<PathBuf>) -> Result<Vec<SourceF
 }
 
 pub fn detect_symlink_mode(current_dir: &Path) -> bool {
-    let md_files = match get_md_files_in_ai_rules_dir(current_dir) {
+    let md_files = match get_md_files_in_ai_rules_dir(current_dir, true) {
         Ok(files) => files,
         Err(_) => return false,
     };
@@ -79,7 +79,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
 
-        let result = find_source_files(temp_path).unwrap();
+        let result = find_source_files(temp_path, true).unwrap();
 
         assert!(result.is_empty());
     }
@@ -92,7 +92,7 @@ mod tests {
 
         fs::create_dir(&ai_rules_dir).unwrap();
 
-        let result = find_source_files(temp_path).unwrap();
+        let result = find_source_files(temp_path, true).unwrap();
 
         assert!(result.is_empty());
     }
@@ -118,7 +118,7 @@ This is a test rule."#;
         fs::write(ai_rules_dir.join("test2.md"), source_file_content).unwrap();
         fs::write(ai_rules_dir.join("readme.txt"), "not an md file").unwrap();
 
-        let result = find_source_files(temp_path).unwrap();
+        let result = find_source_files(temp_path, true).unwrap();
 
         assert_eq!(result.len(), 2);
 

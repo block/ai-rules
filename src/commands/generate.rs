@@ -36,6 +36,7 @@ pub fn run_generate(
             &command_agents,
             &registry,
             &mut generation_result,
+            args.follow_symlinks,
         )
     })?;
 
@@ -57,6 +58,7 @@ fn generate_files(
     command_agents: &[String],
     registry: &AgentToolRegistry,
     result: &mut GenerationResult,
+    follow_symlinks: bool,
 ) -> Result<()> {
     operations::clean_generated_files(current_dir, agents, registry)?;
 
@@ -70,7 +72,8 @@ fn generate_files(
             }
         }
     } else {
-        let file_collection = collect_all_files_for_directory(current_dir, agents, registry)?;
+        let file_collection =
+            collect_all_files_for_directory(current_dir, agents, registry, follow_symlinks)?;
 
         for (agent, file_paths) in file_collection.files_by_agent {
             for file_path in file_paths {
@@ -101,7 +104,7 @@ fn generate_files(
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(cmd_gen) = tool.command_generator() {
                 // Generate new command files
-                let cmd_files = cmd_gen.generate_commands(current_dir);
+                let cmd_files = cmd_gen.generate_commands(current_dir, follow_symlinks);
                 for path in cmd_files.keys() {
                     result.add_file(agent, path.clone());
                 }
@@ -135,8 +138,9 @@ fn collect_all_files_for_directory(
     current_dir: &Path,
     agents: &[String],
     registry: &AgentToolRegistry,
+    follow_symlinks: bool,
 ) -> Result<AgentFilesCollection> {
-    let source_files = operations::find_source_files(current_dir)?;
+    let source_files = operations::find_source_files(current_dir, follow_symlinks)?;
     let mut directory_files_to_write: HashMap<PathBuf, String> = HashMap::new();
     let mut files_by_agent: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
@@ -146,7 +150,8 @@ fn collect_all_files_for_directory(
 
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
-                let agent_files = tool.generate_agent_contents(&source_files, current_dir);
+                let agent_files =
+                    tool.generate_agent_contents(&source_files, current_dir, follow_symlinks);
                 let agent_file_paths: Vec<PathBuf> = agent_files.keys().cloned().collect();
                 files_by_agent.insert(agent.clone(), agent_file_paths);
                 directory_files_to_write.extend(agent_files);
@@ -174,6 +179,7 @@ mod tests {
         command_agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
+        follow_symlinks: true,
     };
 
     const TEST_RULE_CONTENT: &str = r#"---
@@ -269,6 +275,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -292,6 +299,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -401,6 +409,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: 0,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -443,6 +452,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -484,6 +494,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            true,
         );
         assert!(result.is_ok());
 
@@ -529,6 +540,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            true,
         );
         assert!(result.is_ok());
 
@@ -559,6 +571,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            true,
         );
         assert!(result.is_ok());
 
@@ -590,6 +603,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            true,
         );
         assert!(result.is_ok());
 
@@ -624,6 +638,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            true,
         );
         assert!(result1.is_ok());
 
@@ -646,6 +661,7 @@ New body content"#;
             &agents,
             &registry,
             &mut generation_result2,
+            true,
         );
         assert!(result2.is_ok());
 
@@ -684,6 +700,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         run_generate(temp_dir.path(), args.clone(), true).unwrap();
 
@@ -726,6 +743,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -762,6 +780,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -787,6 +806,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -814,6 +834,7 @@ Optional content"#,
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -844,6 +865,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -871,6 +893,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -905,6 +928,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -929,6 +953,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            follow_symlinks: true,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
