@@ -56,7 +56,8 @@ impl AgentRuleGenerator for RooGenerator {
         current_dir: &Path,
         _follow_symlinks: bool,
     ) -> Result<bool> {
-        self.inner.check_agent_contents(source_files, current_dir, _follow_symlinks)
+        self.inner
+            .check_agent_contents(source_files, current_dir, _follow_symlinks)
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {

@@ -150,7 +150,8 @@ fn collect_all_files_for_directory(
 
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
-                let agent_files = tool.generate_agent_contents(&source_files, current_dir, follow_symlinks);
+                let agent_files =
+                    tool.generate_agent_contents(&source_files, current_dir, follow_symlinks);
                 let agent_file_paths: Vec<PathBuf> = agent_files.keys().cloned().collect();
                 files_by_agent.insert(agent.clone(), agent_file_paths);
                 directory_files_to_write.extend(agent_files);

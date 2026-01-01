@@ -46,7 +46,11 @@ impl AgentRuleGenerator for FirebenderGenerator {
 
         let firebender_file_path = current_dir.join(FIREBENDER_JSON);
 
-        match generate_firebender_json_with_overlay(source_files, Some(current_dir), follow_symlinks) {
+        match generate_firebender_json_with_overlay(
+            source_files,
+            Some(current_dir),
+            follow_symlinks,
+        ) {
             Ok(content) => {
                 agent_files.insert(firebender_file_path, content);
             }
@@ -70,7 +74,8 @@ impl AgentRuleGenerator for FirebenderGenerator {
             return Ok(!firebender_file.exists());
         }
 
-        let expected_files = self.generate_agent_contents(source_files, current_dir, follow_symlinks);
+        let expected_files =
+            self.generate_agent_contents(source_files, current_dir, follow_symlinks);
         let Some(expected_content) = expected_files.get(&firebender_file) else {
             return Ok(false);
         };
@@ -542,7 +547,8 @@ mod tests {
         );
 
         let result =
-            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true).unwrap();
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true)
+                .unwrap();
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         let rules = parsed["rules"].as_array().unwrap();
@@ -574,7 +580,8 @@ mod tests {
         )];
 
         let result =
-            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true).unwrap();
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true)
+                .unwrap();
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         let rules = parsed["rules"].as_array().unwrap();
@@ -697,7 +704,8 @@ mod tests {
         std::fs::create_dir_all(&ai_rules_dir).unwrap();
         create_file(&ai_rules_dir, FIREBENDER_OVERLAY_JSON, "{ invalid json");
 
-        let result = generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true);
+        let result =
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -929,7 +937,8 @@ mod tests {
         );
 
         let result =
-            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true).unwrap();
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true)
+                .unwrap();
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         // Verify rules are present
@@ -961,7 +970,8 @@ mod tests {
         let source_files = vec![create_standard_test_source_file()];
 
         let result =
-            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true).unwrap();
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true)
+                .unwrap();
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         // Verify rules are present
@@ -993,7 +1003,8 @@ Create a git commit with proper formatting."#;
         create_file(&commands_dir, "commit.md", command_with_frontmatter);
 
         let result =
-            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true).unwrap();
+            generate_firebender_json_with_overlay(&source_files, Some(temp_dir.path()), true)
+                .unwrap();
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         // Verify commands array includes the command

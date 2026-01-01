@@ -80,7 +80,8 @@ impl AgentRuleGenerator for CursorGenerator {
             return Ok(!cursor_rules_dir.exists());
         }
 
-        let expected_files = self.generate_agent_contents(source_files, current_dir, follow_symlinks);
+        let expected_files =
+            self.generate_agent_contents(source_files, current_dir, follow_symlinks);
 
         check_directory_exact_match(&cursor_rules_dir, &expected_files)
     }

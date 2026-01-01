@@ -73,7 +73,11 @@ pub fn find_command_files(current_dir: &Path, follow_symlinks: bool) -> Result<V
 
 /// Creates individual symlinks for each command file in the target directory
 #[allow(dead_code)]
-pub fn create_command_symlinks(current_dir: &Path, target_dir: &str, follow_symlinks: bool) -> Result<Vec<PathBuf>> {
+pub fn create_command_symlinks(
+    current_dir: &Path,
+    target_dir: &str,
+    follow_symlinks: bool,
+) -> Result<Vec<PathBuf>> {
     let command_files = find_command_files(current_dir, follow_symlinks)?;
     if command_files.is_empty() {
         return Ok(Vec::new());
@@ -123,7 +127,11 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 
 /// Checks if generated command symlinks are in sync
 #[allow(dead_code)]
-pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str, follow_symlinks: bool) -> Result<bool> {
+pub fn check_command_symlinks_in_sync(
+    current_dir: &Path,
+    target_dir: &str,
+    follow_symlinks: bool,
+) -> Result<bool> {
     use std::fs;
 
     let command_files = find_command_files(current_dir, follow_symlinks)?;

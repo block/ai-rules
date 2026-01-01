@@ -10,7 +10,11 @@ use std::path::{Path, PathBuf};
 pub struct ClaudeCommandGenerator;
 
 impl CommandGeneratorTrait for ClaudeCommandGenerator {
-    fn generate_commands(&self, current_dir: &Path, follow_symlinks: bool) -> HashMap<PathBuf, String> {
+    fn generate_commands(
+        &self,
+        current_dir: &Path,
+        follow_symlinks: bool,
+    ) -> HashMap<PathBuf, String> {
         let mut files = HashMap::new();
 
         let command_files = match find_command_files(current_dir, follow_symlinks) {

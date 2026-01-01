@@ -91,7 +91,14 @@ pub fn check_project_status(
 
             for agent in &agents {
                 if agent_statuses[agent]
-                    && !check_agent_files(dir, agent, &source_files, &registry, is_symlink_mode, true)?
+                    && !check_agent_files(
+                        dir,
+                        agent,
+                        &source_files,
+                        &registry,
+                        is_symlink_mode,
+                        true,
+                    )?
                 {
                     agent_statuses.insert(agent.clone(), false);
                 }

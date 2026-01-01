@@ -5,7 +5,11 @@ use std::path::{Path, PathBuf};
 pub trait CommandGeneratorTrait {
     /// Generate command files for this agent
     /// Returns HashMap of output path -> content
-    fn generate_commands(&self, current_dir: &Path, follow_symlinks: bool) -> HashMap<PathBuf, String>;
+    fn generate_commands(
+        &self,
+        current_dir: &Path,
+        follow_symlinks: bool,
+    ) -> HashMap<PathBuf, String>;
 
     /// Clean generated command files
     fn clean_commands(&self, current_dir: &Path) -> Result<()>;
