@@ -31,7 +31,7 @@ struct InitResult {
 
 pub fn run_init(current_dir: &Path, init_args: InitArgs) -> Result<()> {
     let ai_rules_dir = get_ai_rules_dir(current_dir);
-    let source_files = find_source_files(current_dir, true)?;
+    let source_files = find_source_files(current_dir)?;
 
     let recipe_source = find_custom_recipe(current_dir)
         .map(RecipeSource::Custom)

@@ -136,7 +136,7 @@ fn collect_all_files_for_directory(
     agents: &[String],
     registry: &AgentToolRegistry,
 ) -> Result<AgentFilesCollection> {
-    let source_files = operations::find_source_files(current_dir, true)?;
+    let source_files = operations::find_source_files(current_dir)?;
     let mut directory_files_to_write: HashMap<PathBuf, String> = HashMap::new();
     let mut files_by_agent: HashMap<String, Vec<PathBuf>> = HashMap::new();
 

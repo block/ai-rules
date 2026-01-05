@@ -80,7 +80,7 @@ pub fn check_project_status(
             if is_symlink_mode {
                 has_ai_rules = true;
             } else {
-                source_files = operations::find_source_files(dir, true)?;
+                source_files = operations::find_source_files(dir)?;
                 if !source_files.is_empty() {
                     has_ai_rules = true;
                 }

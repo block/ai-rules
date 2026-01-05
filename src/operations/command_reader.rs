@@ -41,7 +41,7 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
         return Ok(Vec::new());
     }
 
-    let command_paths = find_files_by_extension(&commands_dir, MD_EXTENSION, true)?;
+    let command_paths = find_files_by_extension(&commands_dir, MD_EXTENSION)?;
 
     let mut command_files = Vec::new();
     for path in command_paths {
