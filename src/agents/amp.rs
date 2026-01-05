@@ -28,7 +28,6 @@ impl AgentRuleGenerator for AmpGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         generate_agent_file_contents(source_files, current_dir, AGENTS_MD_FILENAME)
     }
@@ -37,7 +36,6 @@ impl AgentRuleGenerator for AmpGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> Result<bool> {
         check_in_sync(source_files, current_dir, AGENTS_MD_FILENAME)
     }
@@ -106,7 +104,7 @@ mod tests {
 
         let generator = AmpGenerator;
         let cmd_gen = generator.command_generator().unwrap();
-        let files = cmd_gen.generate_commands(temp_dir.path(), true);
+        let files = cmd_gen.generate_commands(temp_dir.path());
 
         assert_eq!(files.len(), 1);
 

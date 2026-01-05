@@ -34,14 +34,14 @@ pub struct CommandFile {
 
 /// Finds all command markdown files in ai-rules/commands/ directory
 #[allow(dead_code)]
-pub fn find_command_files(current_dir: &Path, follow_symlinks: bool) -> Result<Vec<CommandFile>> {
+pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
     let commands_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(COMMANDS_DIR);
 
     if !commands_dir.exists() || !commands_dir.is_dir() {
         return Ok(Vec::new());
     }
 
-    let command_paths = find_files_by_extension(&commands_dir, MD_EXTENSION, follow_symlinks)?;
+    let command_paths = find_files_by_extension(&commands_dir, MD_EXTENSION, true)?;
 
     let mut command_files = Vec::new();
     for path in command_paths {
@@ -73,12 +73,8 @@ pub fn find_command_files(current_dir: &Path, follow_symlinks: bool) -> Result<V
 
 /// Creates individual symlinks for each command file in the target directory
 #[allow(dead_code)]
-pub fn create_command_symlinks(
-    current_dir: &Path,
-    target_dir: &str,
-    follow_symlinks: bool,
-) -> Result<Vec<PathBuf>> {
-    let command_files = find_command_files(current_dir, follow_symlinks)?;
+pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec<PathBuf>> {
+    let command_files = find_command_files(current_dir)?;
     if command_files.is_empty() {
         return Ok(Vec::new());
     }
@@ -127,14 +123,10 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 
 /// Checks if generated command symlinks are in sync
 #[allow(dead_code)]
-pub fn check_command_symlinks_in_sync(
-    current_dir: &Path,
-    target_dir: &str,
-    follow_symlinks: bool,
-) -> Result<bool> {
+pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Result<bool> {
     use std::fs;
 
-    let command_files = find_command_files(current_dir, follow_symlinks)?;
+    let command_files = find_command_files(current_dir)?;
     let target_path = current_dir.join(target_dir);
 
     if command_files.is_empty() {
@@ -209,7 +201,7 @@ mod tests {
     #[test]
     fn test_find_command_files_empty_when_no_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let result = find_command_files(temp_dir.path(), true).unwrap();
+        let result = find_command_files(temp_dir.path()).unwrap();
         assert_eq!(result.len(), 0);
     }
 
@@ -223,7 +215,7 @@ mod tests {
         fs::write(commands_dir.join("review.md"), "Review command content").unwrap();
         fs::write(commands_dir.join("readme.txt"), "Not a markdown file").unwrap();
 
-        let result = find_command_files(temp_dir.path(), true).unwrap();
+        let result = find_command_files(temp_dir.path()).unwrap();
         assert_eq!(result.len(), 2);
 
         let names: Vec<String> = result.iter().map(|c| c.name.clone()).collect();
@@ -239,7 +231,7 @@ mod tests {
         fs::write(commands_dir.join("commit.md"), "Commit command").unwrap();
         fs::write(commands_dir.join("review.md"), "Review command").unwrap();
 
-        let symlinks = create_command_symlinks(temp_dir.path(), ".claude/commands", true).unwrap();
+        let symlinks = create_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
         assert_eq!(symlinks.len(), 2);
 
         let commit_symlink = temp_dir
@@ -259,7 +251,7 @@ mod tests {
         fs::create_dir_all(&commands_dir).unwrap();
         fs::write(commands_dir.join("test.md"), "Test").unwrap();
 
-        create_command_symlinks(temp_dir.path(), ".claude/commands", true).unwrap();
+        create_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
 
         let commands_path = temp_dir.path().join(".claude/commands");
         fs::write(commands_path.join("custom.md"), "User's custom command").unwrap();

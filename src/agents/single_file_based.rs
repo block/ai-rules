@@ -34,7 +34,6 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         generate_agent_file_contents(source_files, current_dir, &self.output_filename)
     }
@@ -43,7 +42,6 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> Result<bool> {
         check_in_sync(source_files, current_dir, &self.output_filename)
     }

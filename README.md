@@ -147,7 +147,6 @@ Generate rules for AI coding agents from your `ai-rules/*.md` source files.
   - `0` - Only process current directory
   - `1` - Process current directory and immediate subdirectories
   - `2` - Process up to 2 levels deep, etc.
-- `--no-follow-symlinks` - Do not follow symlinks when discovering source files or command files in `ai-rules/` directories. By default, symlinks are followed.
 
 See [Configuration](#configuration) section for setting defaults.
 
@@ -171,7 +170,6 @@ ai-rules generate
 ai-rules generate --agents claude,cursor
 ai-rules generate --nested-depth 2
 ai-rules generate --agents claude,cursor --nested-depth 1
-ai-rules generate --no-follow-symlinks  # Don't follow symlinks in ai-rules/
 ```
 
 ### `ai-rules status [--agents <agent1,agent2>] [--nested-depth <depth>]`
@@ -180,7 +178,6 @@ Show the current sync status of AI rules
 **Options:**
 - `--agents` - Comma-separated list of specific agents to check (e.g., `--agents claude,cursor`). Can be set in config.
 - `--nested-depth` - Maximum directory depth to check for rules in `ai-rules/` folders (default: 0). Can be set in config.
-- `--no-follow-symlinks` - Do not follow symlinks when checking source files or command files in `ai-rules/` directories. By default, symlinks are followed.
 
 See [Configuration](#configuration) section for setting defaults.
 

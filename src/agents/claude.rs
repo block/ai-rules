@@ -54,7 +54,6 @@ impl AgentRuleGenerator for ClaudeGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         let mut all_files = HashMap::new();
 
@@ -84,7 +83,6 @@ impl AgentRuleGenerator for ClaudeGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> Result<bool> {
         let file_path = current_dir.join(&self.output_filename);
 
@@ -223,7 +221,7 @@ mod tests {
             ),
         ];
 
-        let files = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
+        let files = generator.generate_agent_contents(&source_files, temp_dir.path());
 
         assert_eq!(files.len(), 2);
 
@@ -266,7 +264,7 @@ mod tests {
             ),
         ];
 
-        let files = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
+        let files = generator.generate_agent_contents(&source_files, temp_dir.path());
 
         // In non-skills mode, only CLAUDE.md should be generated
         assert_eq!(files.len(), 1);
@@ -293,7 +291,7 @@ mod tests {
 
         // Initially not in sync (no files)
         let result = generator
-            .check_agent_contents(&source_files, temp_dir.path(), true)
+            .check_agent_contents(&source_files, temp_dir.path())
             .unwrap();
         assert!(!result);
 
@@ -303,7 +301,7 @@ mod tests {
 
         // Still not in sync (missing skill)
         let result = generator
-            .check_agent_contents(&source_files, temp_dir.path(), true)
+            .check_agent_contents(&source_files, temp_dir.path())
             .unwrap();
         assert!(!result);
 
@@ -320,7 +318,7 @@ mod tests {
 
         // Now in sync
         let result = generator
-            .check_agent_contents(&source_files, temp_dir.path(), true)
+            .check_agent_contents(&source_files, temp_dir.path())
             .unwrap();
         assert!(result);
     }

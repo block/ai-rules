@@ -44,7 +44,6 @@ impl AgentRuleGenerator for CodexGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> HashMap<PathBuf, String> {
         generate_agent_file_contents(source_files, current_dir, &self.output_filename)
     }
@@ -53,7 +52,6 @@ impl AgentRuleGenerator for CodexGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        _follow_symlinks: bool,
     ) -> Result<bool> {
         check_in_sync(source_files, current_dir, &self.output_filename)
     }
@@ -127,7 +125,7 @@ mod tests {
             "rule1 body",
         )];
 
-        let result = generator.generate_agent_contents(&source_files, temp_dir.path(), true);
+        let result = generator.generate_agent_contents(&source_files, temp_dir.path());
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("AGENTS.md");
@@ -152,7 +150,7 @@ mod tests {
         create_file(temp_dir.path(), "AGENTS.md", expected_content);
 
         let result = generator
-            .check_agent_contents(&source_files, temp_dir.path(), true)
+            .check_agent_contents(&source_files, temp_dir.path())
             .unwrap();
         assert!(result);
     }
@@ -173,7 +171,7 @@ mod tests {
         create_file(temp_dir.path(), "AGENTS.md", "wrong content");
 
         let result = generator
-            .check_agent_contents(&source_files, temp_dir.path(), true)
+            .check_agent_contents(&source_files, temp_dir.path())
             .unwrap();
         assert!(!result);
     }

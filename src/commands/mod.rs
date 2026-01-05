@@ -71,7 +71,6 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
-            follow_symlinks: true,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         if let Err(e) = &generate_result {
@@ -153,7 +152,6 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
-            follow_symlinks: true,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         assert!(generate_result.is_ok());

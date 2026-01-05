@@ -15,15 +15,10 @@ pub trait AgentRuleGenerator {
         &self,
         source_files: &[SourceFile],
         current_dir: &Path,
-        follow_symlinks: bool,
     ) -> HashMap<PathBuf, String>;
 
-    fn check_agent_contents(
-        &self,
-        source_files: &[SourceFile],
-        current_dir: &Path,
-        follow_symlinks: bool,
-    ) -> Result<bool>;
+    fn check_agent_contents(&self, source_files: &[SourceFile], current_dir: &Path)
+        -> Result<bool>;
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool>;
 
