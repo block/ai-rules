@@ -24,7 +24,9 @@ pub fn find_files_by_extension(dir: &Path, extension: &str) -> Result<Vec<PathBu
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().is_some_and(|ext| ext == extension) {
+        let metadata = fs::metadata(&path)?;
+
+        if metadata.is_file() && path.extension().is_some_and(|ext| ext == extension) {
             files.push(path);
         }
     }
@@ -550,6 +552,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_check_agents_md_symlink_wrong_target() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -567,6 +570,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_check_agents_md_symlink_missing_source() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -576,5 +580,43 @@ mod tests {
 
         let result = check_agents_md_symlink(temp_path, &symlink_path).unwrap();
         assert!(!result);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_find_files_by_extension_with_symlinks_enabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join("regular.md"), "regular file").unwrap();
+        fs::write(temp_path.join("target.md"), "target file").unwrap();
+        symlink(temp_path.join("target.md"), temp_path.join("link.md")).unwrap();
+
+        let md_files = find_files_by_extension(temp_path, "md").unwrap();
+        assert_eq!(md_files.len(), 3);
+
+        let filenames: Vec<String> = md_files
+            .iter()
+            .filter_map(|p| p.file_name())
+            .filter_map(|n| n.to_str())
+            .map(|s| s.to_string())
+            .collect();
+
+        assert!(filenames.contains(&"regular.md".to_string()));
+        assert!(filenames.contains(&"target.md".to_string()));
+        assert!(filenames.contains(&"link.md".to_string()));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_find_files_by_extension_with_broken_symlink() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join("regular.md"), "regular file").unwrap();
+        symlink("nonexistent.md", temp_path.join("broken_link.md")).unwrap();
+
+        let result = find_files_by_extension(temp_path, "md");
+        assert!(result.is_err());
     }
 }
