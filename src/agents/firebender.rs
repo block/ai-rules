@@ -1,9 +1,12 @@
 //! Firebender agent implementation for generating firebender.json configuration files.
 
+use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::rule_generator::AgentRuleGenerator;
+use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::constants::{
     AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_JSON, FIREBENDER_OVERLAY_JSON,
-    FIREBENDER_USE_CURSOR_RULES_FIELD, MCP_SERVERS_FIELD, OPTIONAL_RULES_FILENAME,
+    FIREBENDER_SKILLS_DIR, FIREBENDER_USE_CURSOR_RULES_FIELD, MCP_SERVERS_FIELD,
+    OPTIONAL_RULES_FILENAME,
 };
 use crate::models::SourceFile;
 use crate::operations::body_generator::generated_body_file_reference_path;
@@ -113,6 +116,12 @@ impl AgentRuleGenerator for FirebenderGenerator {
             .with_context(|| format!("Failed to write {}", firebender_path.display()))?;
 
         Ok(vec![firebender_path])
+    }
+
+    fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
+        Some(Box::new(ExternalSkillsGenerator::new(
+            FIREBENDER_SKILLS_DIR,
+        )))
     }
 }
 
@@ -1000,5 +1009,26 @@ Create a git commit with proper formatting."#;
             commands[0]["path"].as_str().unwrap(),
             "ai-rules/commands/commit.md"
         );
+    }
+
+    #[test]
+    fn test_firebender_has_skills_generator() {
+        let generator = FirebenderGenerator;
+        assert!(generator.skills_generator().is_some());
+    }
+
+    #[test]
+    fn test_firebender_skills_target_dir() {
+        let generator = FirebenderGenerator;
+        let skills_gen = generator.skills_generator().unwrap();
+        assert_eq!(skills_gen.skills_target_dir(), ".firebender/skills");
+    }
+
+    #[test]
+    fn test_firebender_skills_gitignore_patterns() {
+        let generator = FirebenderGenerator;
+        let skills_gen = generator.skills_generator().unwrap();
+        let patterns = skills_gen.skills_gitignore_patterns();
+        assert_eq!(patterns, vec![".firebender/skills/ai-rules-generated-*"]);
     }
 }

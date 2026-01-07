@@ -215,7 +215,7 @@ pub fn check_skill_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Res
 /// Returns gitignore patterns for generated skill symlinks
 #[allow(dead_code)]
 pub fn get_skill_gitignore_patterns(target_dir: &str) -> Vec<String> {
-    vec![format!("{}/{}*/", target_dir, GENERATED_FILE_PREFIX)]
+    vec![format!("{}/{}*", target_dir, GENERATED_FILE_PREFIX)]
 }
 
 #[cfg(test)]
@@ -427,7 +427,7 @@ mod tests {
     fn test_get_skill_gitignore_patterns() {
         let patterns = get_skill_gitignore_patterns(".claude/skills");
         assert_eq!(patterns.len(), 1);
-        assert_eq!(patterns[0], ".claude/skills/ai-rules-generated-*/");
+        assert_eq!(patterns[0], ".claude/skills/ai-rules-generated-*");
     }
 
     #[test]

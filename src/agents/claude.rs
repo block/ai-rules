@@ -120,7 +120,7 @@ impl AgentRuleGenerator for ClaudeGenerator {
     fn gitignore_patterns(&self) -> Vec<String> {
         let mut patterns = vec![self.output_filename.clone()];
         if self.skills_mode {
-            patterns.push(format!("{}/{}*/", CLAUDE_SKILLS_DIR, GENERATED_FILE_PREFIX));
+            patterns.push(format!("{}/{}*", CLAUDE_SKILLS_DIR, GENERATED_FILE_PREFIX));
         }
         patterns
     }
@@ -188,7 +188,7 @@ mod tests {
 
         assert_eq!(patterns.len(), 2);
         assert!(patterns.contains(&"CLAUDE.md".to_string()));
-        assert!(patterns.contains(&".claude/skills/ai-rules-generated-*/".to_string()));
+        assert!(patterns.contains(&".claude/skills/ai-rules-generated-*".to_string()));
     }
 
     #[test]

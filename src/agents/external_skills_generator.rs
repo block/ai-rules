@@ -147,7 +147,7 @@ mod tests {
     fn test_external_skills_generator_gitignore_patterns() {
         let generator = ExternalSkillsGenerator::new(".claude/skills");
         let patterns = generator.skills_gitignore_patterns();
-        assert_eq!(patterns, vec![".claude/skills/ai-rules-generated-*/"]);
+        assert_eq!(patterns, vec![".claude/skills/ai-rules-generated-*"]);
     }
 
     #[test]
@@ -156,21 +156,21 @@ mod tests {
         let claude_gen = ExternalSkillsGenerator::new(".claude/skills");
         assert_eq!(
             claude_gen.skills_gitignore_patterns(),
-            vec![".claude/skills/ai-rules-generated-*/"]
+            vec![".claude/skills/ai-rules-generated-*"]
         );
 
         // Test Codex target
         let codex_gen = ExternalSkillsGenerator::new(".codex/skills");
         assert_eq!(
             codex_gen.skills_gitignore_patterns(),
-            vec![".codex/skills/ai-rules-generated-*/"]
+            vec![".codex/skills/ai-rules-generated-*"]
         );
 
         // Test AMP target
         let amp_gen = ExternalSkillsGenerator::new(".agents/skills");
         assert_eq!(
             amp_gen.skills_gitignore_patterns(),
-            vec![".agents/skills/ai-rules-generated-*/"]
+            vec![".agents/skills/ai-rules-generated-*"]
         );
     }
 }
