@@ -3,7 +3,6 @@ use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
-use crate::constants::GENERATED_FILE_PREFIX;
 use crate::models::SourceFile;
 use crate::operations::mcp_reader::read_mcp_config;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
@@ -88,11 +87,9 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         let source_json: Value = serde_json::from_str(&source_mcp_content).unwrap_or(json!({}));
         let mut source_servers = source_json.get("mcpServers").unwrap_or(&json!({})).clone();
 
-        // Apply Gemini-specific transformations
+        // Apply Gemini-specific transformations and mark as generated
         self.transform_mcp_servers(&mut source_servers);
-
-        // Prefix source server names with GENERATED_FILE_PREFIX
-        let prefixed_servers = self.prefix_server_names(&source_servers);
+        self.mark_as_generated(&mut source_servers);
 
         // 2. Read existing target config (.gemini/settings.json)
         let target_path = current_dir.join(GEMINI_SETTINGS_JSON);
@@ -110,15 +107,15 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
             .cloned()
             .unwrap_or_default();
 
-        // Keep only user-configured servers (those without the prefix)
+        // Keep only user-configured servers (those without the _aiRulesGenerated marker)
         let mut merged_servers: Map<String, Value> = existing_servers
             .into_iter()
-            .filter(|(name, _)| !name.starts_with(GENERATED_FILE_PREFIX))
+            .filter(|(_, config)| !self.is_generated(config))
             .collect();
 
-        // Add new prefixed servers
-        if let Some(prefixed_obj) = prefixed_servers.as_object() {
-            for (name, config) in prefixed_obj {
+        // Add generated servers (preserving original names)
+        if let Some(source_obj) = source_servers.as_object() {
+            for (name, config) in source_obj {
                 merged_servers.insert(name.clone(), config.clone());
             }
         }
@@ -141,10 +138,10 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
             let mut json: Value = serde_json::from_str(&content)?;
 
             if let Some(obj) = json.as_object_mut() {
-                // Only remove servers with the generated prefix, preserve user servers
+                // Only remove servers with the _aiRulesGenerated marker, preserve user servers
                 if let Some(mcp_servers) = obj.get_mut("mcpServers") {
                     if let Some(servers_obj) = mcp_servers.as_object_mut() {
-                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_FILE_PREFIX));
+                        servers_obj.retain(|_, config| !self.is_generated(config));
                     }
                 }
 
@@ -161,7 +158,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         let source_mcp_content = match read_mcp_config(current_dir)? {
             Some(c) => c,
             None => {
-                // If no source, check target doesn't have any generated (prefixed) servers
+                // If no source, check target doesn't have any generated servers
                 if !target_path.exists() {
                     return Ok(true);
                 }
@@ -172,7 +169,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
                     None => true,
                     Some(val) => val
                         .as_object()
-                        .is_none_or(|o| !o.keys().any(|k| k.starts_with(GENERATED_FILE_PREFIX))),
+                        .is_none_or(|o| !o.values().any(|v| self.is_generated(v))),
                 };
                 return Ok(has_no_generated);
             }
@@ -185,27 +182,26 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         let source_json: Value = serde_json::from_str(&source_mcp_content)?;
         let empty_obj = json!({});
         let mut source_servers = source_json.get("mcpServers").unwrap_or(&empty_obj).clone();
-        // Transform source before comparison
+        // Transform source before comparison and mark as generated
         self.transform_mcp_servers(&mut source_servers);
-        // Prefix source server names for comparison
-        let expected_servers = self.prefix_server_names(&source_servers);
+        self.mark_as_generated(&mut source_servers);
 
         let target_content = fs::read_to_string(&target_path)?;
         let target_json: Value = serde_json::from_str(&target_content)?;
 
-        // Extract only generated (prefixed) servers from target for comparison
+        // Extract only generated servers from target for comparison
         let target_generated_servers: Map<String, Value> = target_json
             .get("mcpServers")
             .and_then(|v| v.as_object())
             .map(|obj| {
                 obj.iter()
-                    .filter(|(name, _)| name.starts_with(GENERATED_FILE_PREFIX))
+                    .filter(|(_, config)| self.is_generated(config))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect()
             })
             .unwrap_or_default();
 
-        let expected_obj = expected_servers.as_object().cloned().unwrap_or_default();
+        let expected_obj = source_servers.as_object().cloned().unwrap_or_default();
         Ok(target_generated_servers == expected_obj)
     }
 
@@ -218,21 +214,26 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
     }
 }
 
+const AI_RULES_GENERATED_MARKER: &str = "_aiRulesGenerated";
+
 impl GeminiMcpGenerator {
-    /// Prefixes all server names with GENERATED_FILE_PREFIX
-    fn prefix_server_names(&self, servers: &Value) -> Value {
-        if let Some(servers_obj) = servers.as_object() {
-            let prefixed: Map<String, Value> = servers_obj
-                .iter()
-                .map(|(name, config)| {
-                    let prefixed_name = format!("{}{}", GENERATED_FILE_PREFIX, name);
-                    (prefixed_name, config.clone())
-                })
-                .collect();
-            Value::Object(prefixed)
-        } else {
-            json!({})
+    /// Marks all servers with _aiRulesGenerated: true
+    fn mark_as_generated(&self, servers: &mut Value) {
+        if let Some(servers_obj) = servers.as_object_mut() {
+            for (_, config) in servers_obj.iter_mut() {
+                if let Some(config_obj) = config.as_object_mut() {
+                    config_obj.insert(AI_RULES_GENERATED_MARKER.to_string(), json!(true));
+                }
+            }
         }
+    }
+
+    /// Checks if a server config has the _aiRulesGenerated marker
+    fn is_generated(&self, config: &Value) -> bool {
+        config
+            .get(AI_RULES_GENERATED_MARKER)
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
     }
 
     fn transform_mcp_servers(&self, servers: &mut Value) {
@@ -344,17 +345,18 @@ mod tests {
 }"#;
         create_file(temp_dir.path(), "ai-rules/mcp.json", source_config);
 
-        // Create target config that is already transformed AND prefixed
+        // Create target config that is already transformed with marker (not prefixed name)
         let target_config = r#"{
   "mcpServers": {
-    "ai-rules-generated-jira": {
-      "url": "https://mcp.atlassian.com/v1/sse"
+    "jira": {
+      "url": "https://mcp.atlassian.com/v1/sse",
+      "_aiRulesGenerated": true
     }
   }
 }"#;
         create_file(temp_dir.path(), ".gemini/settings.json", target_config);
 
-        // Check should pass because source is transformed and prefixed before comparison
+        // Check should pass because source is transformed and marked before comparison
         let result = generator.check_mcp(temp_dir.path()).unwrap();
         assert!(result);
     }
@@ -384,11 +386,11 @@ mod tests {
             r#"{"mcpServers": {"new-server": {"command": "npx", "args": ["-y", "test"]}}}"#;
         create_file(temp_dir.path(), "ai-rules/mcp.json", source_config);
 
-        // Create existing target with user servers, old generated servers, and other settings
+        // Create existing target with user servers, old generated servers (with marker), and other settings
         let existing_target = r#"{
   "mcpServers": {
     "user-server": {"url": "http://user.example.com"},
-    "ai-rules-generated-old-server": {"url": "http://old.example.com"}
+    "old-server": {"url": "http://old.example.com", "_aiRulesGenerated": true}
   },
   "otherSetting": "preserved",
   "nestedSetting": {
@@ -419,10 +421,12 @@ mod tests {
         assert!(mcp_servers.contains_key("user-server"));
 
         // Old generated server should be removed
-        assert!(!mcp_servers.contains_key("ai-rules-generated-old-server"));
+        assert!(!mcp_servers.contains_key("old-server"));
 
-        // New server should be added with prefix
-        assert!(mcp_servers.contains_key("ai-rules-generated-new-server"));
+        // New server should be added with original name (not prefixed) and marker
+        assert!(mcp_servers.contains_key("new-server"));
+        let new_server = mcp_servers.get("new-server").unwrap();
+        assert_eq!(new_server.get("_aiRulesGenerated").unwrap(), true);
     }
 
     #[test]
@@ -440,15 +444,15 @@ mod tests {
     }
 
     #[test]
-    fn test_clean_mcp_only_removes_prefixed_servers() {
+    fn test_clean_mcp_only_removes_marked_servers() {
         let temp_dir = TempDir::new().unwrap();
         let generator = GeminiMcpGenerator;
 
-        // Create target with both user and generated servers, plus other settings
+        // Create target with both user and generated servers (with marker), plus other settings
         let target_config = r#"{
   "mcpServers": {
     "user-server": {"url": "http://user.example.com"},
-    "ai-rules-generated-test": {"url": "http://generated.example.com"}
+    "generated-test": {"url": "http://generated.example.com", "_aiRulesGenerated": true}
   },
   "otherSetting": "preserved",
   "anotherSetting": 42
@@ -466,7 +470,7 @@ mod tests {
         // mcpServers should still exist with user servers
         let mcp_servers = json.get("mcpServers").unwrap().as_object().unwrap();
         assert!(mcp_servers.contains_key("user-server"));
-        assert!(!mcp_servers.contains_key("ai-rules-generated-test"));
+        assert!(!mcp_servers.contains_key("generated-test"));
         // Other settings should be preserved
         assert_eq!(json.get("otherSetting").unwrap(), "preserved");
         assert_eq!(json.get("anotherSetting").unwrap(), 42);
@@ -522,10 +526,10 @@ mod tests {
 
         // No source config (ai-rules/mcp.json doesn't exist)
 
-        // Target with generated (prefixed) mcpServers
+        // Target with generated (marked) mcpServers
         let target_config = r#"{
   "mcpServers": {
-    "ai-rules-generated-test": {"url": "http://example.com"}
+    "test-server": {"url": "http://example.com", "_aiRulesGenerated": true}
   }
 }"#;
         create_file(temp_dir.path(), ".gemini/settings.json", target_config);
@@ -579,32 +583,55 @@ mod tests {
     }
 
     #[test]
-    fn test_prefix_server_names() {
+    fn test_mark_as_generated() {
         let generator = GeminiMcpGenerator;
-        let servers = json!({
+        let mut servers = json!({
             "server1": {"command": "npx"},
             "server2": {"url": "http://example.com"}
         });
 
-        let prefixed = generator.prefix_server_names(&servers);
-        let prefixed_obj = prefixed.as_object().unwrap();
+        generator.mark_as_generated(&mut servers);
+        let servers_obj = servers.as_object().unwrap();
 
-        // Original names should not exist
-        assert!(!prefixed_obj.contains_key("server1"));
-        assert!(!prefixed_obj.contains_key("server2"));
+        // Original names should still exist
+        assert!(servers_obj.contains_key("server1"));
+        assert!(servers_obj.contains_key("server2"));
 
-        // Prefixed names should exist
-        assert!(prefixed_obj.contains_key("ai-rules-generated-server1"));
-        assert!(prefixed_obj.contains_key("ai-rules-generated-server2"));
-
-        // Values should be preserved
+        // Each server should have the marker
         assert_eq!(
-            prefixed_obj
-                .get("ai-rules-generated-server1")
+            servers_obj
+                .get("server1")
                 .unwrap()
-                .get("command")
+                .get("_aiRulesGenerated")
                 .unwrap(),
+            true
+        );
+        assert_eq!(
+            servers_obj
+                .get("server2")
+                .unwrap()
+                .get("_aiRulesGenerated")
+                .unwrap(),
+            true
+        );
+
+        // Original values should be preserved
+        assert_eq!(
+            servers_obj.get("server1").unwrap().get("command").unwrap(),
             "npx"
         );
+    }
+
+    #[test]
+    fn test_is_generated() {
+        let generator = GeminiMcpGenerator;
+
+        let generated = json!({"url": "http://example.com", "_aiRulesGenerated": true});
+        let user = json!({"url": "http://example.com"});
+        let explicit_false = json!({"url": "http://example.com", "_aiRulesGenerated": false});
+
+        assert!(generator.is_generated(&generated));
+        assert!(!generator.is_generated(&user));
+        assert!(!generator.is_generated(&explicit_false));
     }
 }
