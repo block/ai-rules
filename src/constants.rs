@@ -13,6 +13,7 @@ pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
 pub const CODEX_SKILLS_DIR: &str = ".codex/skills";
 #[allow(dead_code)]
 pub const AMP_SKILLS_DIR: &str = ".agents/skills";
+pub const CURSOR_SKILLS_DIR: &str = ".cursor/skills";
 pub const FIREBENDER_SKILLS_DIR: &str = ".firebender/skills";
 pub const SKILL_FILENAME: &str = "SKILL.md";
 pub const SKILLS_DIR: &str = "skills";
