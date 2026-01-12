@@ -405,8 +405,9 @@ When you run `ai-rules generate`, symlinks are created in the agent's skills dir
 - `.agents/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (AMP)
 - `.claude/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (Claude)
 - `.codex/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (Codex)
+- `.cursor/skills/ai-rules-generated-debugging` → `../../ai-rules/skills/debugging` (Cursor)
 
-**Supported Agents:** AMP, Claude Code, Codex
+**Supported Agents:** AMP, Claude Code, Codex, Cursor
 
 **Note:** Skill folders without a `SKILL.md` file are skipped with a warning.
 
