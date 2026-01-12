@@ -41,11 +41,7 @@ impl AgentRuleGenerator for ClaudeGenerator {
         if output_file.exists() || output_file.is_symlink() {
             fs::remove_file(&output_file)?;
         }
-
-        // Only clean skills if in skills mode
-        if self.skills_mode {
-            claude_skills::remove_generated_skills(current_dir)?;
-        }
+        claude_skills::remove_generated_skills(current_dir)?;
 
         Ok(())
     }

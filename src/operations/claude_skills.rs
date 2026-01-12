@@ -113,7 +113,10 @@ pub fn check_skills_in_sync(
         std::fs::read_dir(&skills_dir)?
             .filter_map(Result::ok)
             .filter(|entry| {
-                entry.path().is_dir()
+                let path = entry.path();
+                // Only count directories, not symlinks (symlinks are handled by ExternalSkillsGenerator)
+                path.is_dir()
+                    && !path.is_symlink()
                     && entry
                         .file_name()
                         .to_str()
@@ -390,5 +393,30 @@ mod tests {
 
         let result = check_skills_in_sync(&source_files, temp_dir.path()).unwrap();
         assert!(!result);
+    }
+
+    #[test]
+    fn test_check_skills_in_sync_ignores_symlinks() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_files = vec![create_test_source_file(
+            "optional", "Optional", false, "Content",
+        )];
+
+        create_skill_file(
+            temp_dir.path(),
+            "ai-rules-generated-optional",
+            &generate_skill_content("optional", "Optional", "optional"),
+        );
+
+        let skills_dir = temp_dir.path().join(CLAUDE_SKILLS_DIR);
+        let symlink_target = temp_dir.path().join("fake-skill");
+        std::fs::create_dir_all(&symlink_target).unwrap();
+        std::os::unix::fs::symlink(
+            &symlink_target,
+            skills_dir.join("ai-rules-generated-symlink"),
+        )
+        .unwrap();
+
+        assert!(check_skills_in_sync(&source_files, temp_dir.path()).unwrap());
     }
 }
