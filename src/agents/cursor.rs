@@ -1,8 +1,10 @@
 use crate::agents::command_generator::CommandGeneratorTrait;
 use crate::agents::cursor_command_generator::CursorCommandGenerator;
+use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::mcp_generator::{ExternalMcpGenerator, McpGeneratorTrait};
 use crate::agents::rule_generator::AgentRuleGenerator;
-use crate::constants::{AGENTS_MD_FILENAME, GENERATED_FILE_PREFIX, MCP_JSON};
+use crate::agents::skills_generator::SkillsGeneratorTrait;
+use crate::constants::{AGENTS_MD_FILENAME, CURSOR_SKILLS_DIR, GENERATED_FILE_PREFIX, MCP_JSON};
 use crate::models::SourceFile;
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_directory_exact_match, create_symlink_to_agents_md,
@@ -109,6 +111,10 @@ impl AgentRuleGenerator for CursorGenerator {
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
         Some(Box::new(CursorCommandGenerator))
+    }
+
+    fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
+        Some(Box::new(ExternalSkillsGenerator::new(CURSOR_SKILLS_DIR)))
     }
 }
 
