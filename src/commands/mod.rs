@@ -95,9 +95,15 @@ mod tests {
         let status_result = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_result.has_ai_rules);
         assert!(!status_result.body_files_out_of_sync);
-        for in_sync in status_result.agent_statuses.values() {
-            assert!(*in_sync, "All agents should be in sync after generation");
-        }
+        let out_of_sync_agents: Vec<_> = status_result
+            .agent_statuses
+            .iter()
+            .filter_map(|(agent, in_sync)| (!in_sync).then(|| agent.clone()))
+            .collect();
+        assert!(
+            out_of_sync_agents.is_empty(),
+            "All agents should be in sync after generation. Out of sync: {out_of_sync_agents:?}"
+        );
 
         // Change one generated file - modify CLAUDE.md
         create_file(project_path, "CLAUDE.md", "modified content");

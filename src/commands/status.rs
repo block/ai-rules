@@ -84,7 +84,7 @@ pub fn check_project_status(
                 if !source_files.is_empty() {
                     has_ai_rules = true;
                 }
-                if !check_body_files(dir, &source_files)? {
+                if !check_body_files(dir, &source_files, &agents)? {
                     return Err(BodyFilesOutOfSync.into());
                 }
             }
@@ -136,13 +136,20 @@ pub fn check_project_status(
     })
 }
 
-fn check_body_files(current_dir: &Path, source_files: &[SourceFile]) -> Result<bool> {
+fn check_body_files(
+    current_dir: &Path,
+    source_files: &[SourceFile],
+    agents: &[String],
+) -> Result<bool> {
     let generated_dir = generated_body_file_dir(current_dir);
 
     if source_files.is_empty() {
         return Ok(!generated_dir.exists());
     }
-    let expected_body_files = operations::generate_body_contents(source_files, current_dir);
+    let mut expected_body_files = operations::generate_body_contents(source_files, current_dir);
+    let optional_files =
+        operations::generate_optional_rule_files_for_agents(source_files, current_dir, agents);
+    expected_body_files.extend(optional_files);
     file_utils::check_directory_exact_match(&generated_dir, &expected_body_files)
 }
 

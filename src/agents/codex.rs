@@ -4,7 +4,10 @@ use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
 use crate::agents::skills_generator::SkillsGeneratorTrait;
-use crate::constants::{AGENTS_MD_FILENAME, CODEX_SKILLS_DIR};
+use crate::constants::{
+    AGENTS_MD_AGENTS, AGENTS_MD_FILENAME, AGENTS_MD_GROUP_NAME, CODEX_SKILLS_DIR,
+};
+use crate::models::source_file::filter_source_files_for_agent_group;
 use crate::models::SourceFile;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
@@ -45,7 +48,14 @@ impl AgentRuleGenerator for CodexGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
-        generate_agent_file_contents(source_files, current_dir, &self.output_filename)
+        let filtered_source_files =
+            filter_source_files_for_agent_group(source_files, &AGENTS_MD_AGENTS);
+        generate_agent_file_contents(
+            &filtered_source_files,
+            current_dir,
+            &self.output_filename,
+            AGENTS_MD_GROUP_NAME,
+        )
     }
 
     fn check_agent_contents(
@@ -53,7 +63,14 @@ impl AgentRuleGenerator for CodexGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        check_in_sync(source_files, current_dir, &self.output_filename)
+        let filtered_source_files =
+            filter_source_files_for_agent_group(source_files, &AGENTS_MD_AGENTS);
+        check_in_sync(
+            &filtered_source_files,
+            current_dir,
+            &self.output_filename,
+            AGENTS_MD_GROUP_NAME,
+        )
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {

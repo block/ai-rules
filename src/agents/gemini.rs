@@ -4,6 +4,7 @@ use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
 use crate::constants::GENERATED_FILE_PREFIX;
+use crate::models::source_file::filter_source_files_for_agent;
 use crate::models::SourceFile;
 use crate::operations::mcp_reader::read_mcp_config;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
@@ -36,7 +37,13 @@ impl AgentRuleGenerator for GeminiGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
-        generate_agent_file_contents(source_files, current_dir, GEMINI_AGENT_FILE)
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
+        generate_agent_file_contents(
+            &filtered_source_files,
+            current_dir,
+            GEMINI_AGENT_FILE,
+            self.name(),
+        )
     }
 
     fn check_agent_contents(
@@ -44,7 +51,13 @@ impl AgentRuleGenerator for GeminiGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        check_in_sync(source_files, current_dir, GEMINI_AGENT_FILE)
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
+        check_in_sync(
+            &filtered_source_files,
+            current_dir,
+            GEMINI_AGENT_FILE,
+            self.name(),
+        )
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {

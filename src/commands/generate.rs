@@ -139,6 +139,9 @@ fn collect_all_files_for_directory(
     if !source_files.is_empty() {
         let body_files = operations::generate_body_contents(&source_files, current_dir);
         directory_files_to_write.extend(body_files);
+        let optional_files =
+            operations::generate_optional_rule_files_for_agents(&source_files, current_dir, agents);
+        directory_files_to_write.extend(optional_files);
 
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
@@ -320,6 +323,72 @@ alwaysApply: true
 Test rule content
 "#,
         );
+    }
+
+    #[test]
+    fn test_run_generate_filters_optional_rules_by_agent() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let claude_only_rule = r#"---
+description: Claude only
+alwaysApply: false
+allowedAgents: [claude]
+---
+Claude optional rule
+"#;
+        let no_goose_rule = r#"---
+description: Everyone but goose
+alwaysApply: false
+blockedAgents: [goose]
+---
+Not for goose optional rule
+"#;
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/claude-only.md",
+            claude_only_rule,
+        );
+        create_file(
+            temp_dir.path(),
+            "ai-rules/not-goose.md",
+            no_goose_rule,
+        );
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string(), "goose".to_string()]),
+            command_agents: None,
+            gitignore: true,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(
+            temp_dir.path(),
+            "ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md",
+        );
+        assert_file_not_exists(
+            temp_dir.path(),
+            "ai-rules/.generated-ai-rules/ai-rules-generated-optional-goose.md",
+        );
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
+        assert_file_not_exists(temp_dir.path(), AGENTS_MD_FILENAME);
+
+        assert_file_content(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md\n",
+        );
+
+        let optional_content = std::fs::read_to_string(
+            temp_dir
+                .path()
+                .join("ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md"),
+        )
+        .unwrap();
+        assert!(optional_content.contains("Claude only"));
+        assert!(optional_content.contains("Everyone but goose"));
     }
 
     #[test]

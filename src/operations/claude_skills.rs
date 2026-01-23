@@ -166,6 +166,8 @@ mod tests {
                 description: description.to_string(),
                 always_apply,
                 file_matching_patterns: None,
+                allowed_agents: None,
+                blocked_agents: None,
             },
             body: body.to_string(),
             base_file_name: base_name.to_string(),

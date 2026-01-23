@@ -1,8 +1,17 @@
 pub const MD_EXTENSION: &str = "md";
 pub const AI_RULE_SOURCE_DIR: &str = "ai-rules";
 pub const GENERATED_RULE_BODY_DIR: &str = ".generated-ai-rules";
-pub const OPTIONAL_RULES_FILENAME: &str = "ai-rules-generated-optional.md";
 pub const AGENTS_MD_FILENAME: &str = "AGENTS.md";
+pub const AGENTS_MD_GROUP_NAME: &str = "agents-md";
+pub const AGENTS_MD_AGENTS: [&str; 7] = [
+    "amp",
+    "cline",
+    "codex",
+    "copilot",
+    "goose",
+    "kilocode",
+    "roo",
+];
 pub const AI_RULE_CONFIG_FILENAME: &str = "ai-rules-config.yaml";
 pub const GENERATED_FILE_PREFIX: &str = "ai-rules-generated-";
 pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
