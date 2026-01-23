@@ -1,12 +1,12 @@
-use crate::agents::amp_command_generator::AmpCommandGenerator;
 use crate::agents::command_generator::CommandGeneratorTrait;
+use crate::agents::external_commands_generator::ExternalCommandsGenerator;
 use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
 use crate::agents::skills_generator::SkillsGeneratorTrait;
-use crate::constants::{AGENTS_MD_FILENAME, AMP_SKILLS_DIR};
+use crate::constants::{AGENTS_MD_FILENAME, AMP_COMMANDS_DIR, AMP_SKILLS_DIR};
 use crate::models::SourceFile;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
@@ -59,7 +59,7 @@ impl AgentRuleGenerator for AmpGenerator {
     }
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
-        Some(Box::new(AmpCommandGenerator))
+        Some(Box::new(ExternalCommandsGenerator::new(AMP_COMMANDS_DIR)))
     }
 
     fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
@@ -104,13 +104,18 @@ mod tests {
 
         let generator = AmpGenerator;
         let cmd_gen = generator.command_generator().unwrap();
-        let files = cmd_gen.generate_commands(temp_dir.path());
 
-        assert_eq!(files.len(), 1);
+        // generate_command_symlinks creates symlinks (flat structure with -ai-rules.md suffix)
+        let symlinks = cmd_gen.generate_command_symlinks(temp_dir.path()).unwrap();
+        assert_eq!(symlinks.len(), 1);
 
-        // Verify frontmatter is stripped
-        let (_, content) = files.iter().next().unwrap();
-        assert!(!content.contains("---"));
+        // Verify symlink was created with correct naming
+        let symlink_path = temp_dir.path().join(".agents/commands/test-ai-rules.md");
+        assert!(symlink_path.is_symlink());
+
+        // Verify symlink points to source with frontmatter preserved
+        let content = fs::read_to_string(&symlink_path).unwrap();
+        assert!(content.contains("---"));
         assert!(content.contains("Command content"));
     }
 }

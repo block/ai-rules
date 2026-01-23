@@ -15,9 +15,7 @@ pub use body_generator::{
 };
 pub use cleaner::clean_generated_files;
 #[allow(unused_imports)]
-pub use command_reader::{
-    find_command_files, get_command_body_content, CommandFile, CommandFrontMatter,
-};
+pub use command_reader::{find_command_files, CommandFile};
 pub use generation_result::GenerationResult;
 pub use gitignore_updater::{remove_gitignore_section, update_project_gitignore};
 #[allow(unused_imports)]

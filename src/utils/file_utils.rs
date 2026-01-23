@@ -186,43 +186,6 @@ pub fn check_directory_exact_match(
     Ok(true)
 }
 
-/// Check if generated files in directory match expected content
-/// Only checks files with the given suffix pattern
-pub fn check_directory_files_match(
-    dir: &Path,
-    expected: &HashMap<PathBuf, String>,
-    suffix: &str,
-) -> Result<bool> {
-    if !dir.exists() {
-        return Ok(expected.is_empty());
-    }
-
-    // Check all expected files exist with correct content
-    for (path, expected_content) in expected {
-        if !path.exists() {
-            return Ok(false);
-        }
-        let actual_content = fs::read_to_string(path)?;
-        if actual_content != *expected_content {
-            return Ok(false);
-        }
-    }
-
-    // Check no extra generated files exist
-    let suffix_pattern = format!("-{}.md", suffix);
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name.ends_with(&suffix_pattern) && !expected.contains_key(&path) {
-                return Ok(false);
-            }
-        }
-    }
-
-    Ok(true)
-}
-
 const EXCLUDED_DIRECTORIES: &[&str] = &[
     "ai-rules",
     "target",

@@ -95,21 +95,17 @@ fn generate_files(
     }
     write_directory_files(&mcp_files_to_write)?;
 
-    // Generate command files - use command_agents instead of agents
-    let mut command_files_to_write: HashMap<PathBuf, String> = HashMap::new();
+    // Generate command symlinks - use command_agents instead of agents
     for agent in command_agents {
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(cmd_gen) = tool.command_generator() {
-                // Generate new command files
-                let cmd_files = cmd_gen.generate_commands(current_dir);
-                for path in cmd_files.keys() {
-                    result.add_file(agent, path.clone());
+                let command_symlinks = cmd_gen.generate_command_symlinks(current_dir)?;
+                for symlink_path in command_symlinks {
+                    result.add_file(agent, symlink_path);
                 }
-                command_files_to_write.extend(cmd_files);
             }
         }
     }
-    write_directory_files(&command_files_to_write)?;
 
     // Generate skill symlinks
     for agent in agents {
@@ -822,9 +818,18 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), "AGENTS.md");
         assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
 
-        // Command files: both Claude and AMP
-        assert_file_exists(temp_dir.path(), ".claude/commands/ai-rules/my-command.md");
-        assert_file_exists(temp_dir.path(), ".agents/commands/my-command-ai-rules.md");
+        // Command symlinks: Claude uses subfolder, AMP uses flat structure
+        let claude_cmd = temp_dir
+            .path()
+            .join(".claude/commands/ai-rules/my-command.md");
+        let amp_cmd = temp_dir
+            .path()
+            .join(".agents/commands/my-command-ai-rules.md");
+        assert!(
+            claude_cmd.is_symlink(),
+            "Claude command should be a symlink"
+        );
+        assert!(amp_cmd.is_symlink(), "AMP command should be a symlink");
     }
 
     #[test]
@@ -850,7 +855,16 @@ Optional content"#,
 
         // Both rules and commands for claude only
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".claude/commands/ai-rules/my-command.md");
+
+        // Command symlink: Claude uses subfolder structure
+        let claude_cmd = temp_dir
+            .path()
+            .join(".claude/commands/ai-rules/my-command.md");
+        assert!(
+            claude_cmd.is_symlink(),
+            "Claude command should be a symlink"
+        );
+
         assert_file_not_exists(temp_dir.path(), "AGENTS.md");
         assert_file_not_exists(temp_dir.path(), ".agents/commands/my-command-ai-rules.md");
     }

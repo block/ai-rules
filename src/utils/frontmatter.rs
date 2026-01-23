@@ -5,6 +5,7 @@ use serde::de::DeserializeOwned;
 pub const FRONTMATTER_DELIMITER: &str = "---";
 
 /// Result of parsing frontmatter from content
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ParsedContent<T> {
     pub frontmatter: Option<T>,
@@ -40,6 +41,7 @@ pub fn split_frontmatter(content: &str) -> (Option<&str>, &str) {
 
 /// Parses content with optional YAML frontmatter into a typed struct.
 /// Returns ParsedContent with frontmatter (if valid YAML) and body.
+#[allow(dead_code)]
 pub fn parse_frontmatter<T: DeserializeOwned>(content: &str) -> ParsedContent<T> {
     let (frontmatter_str, body) = split_frontmatter(content);
 
