@@ -108,10 +108,8 @@ pub fn generate_optional_rule_files_for_agents(
         if AGENTS_MD_AGENTS.iter().any(|name| name == &agent.as_str()) {
             continue;
         }
-        let filtered_source_files = crate::models::source_file::filter_source_files_for_agent(
-            source_files,
-            agent,
-        );
+        let filtered_source_files =
+            crate::models::source_file::filter_source_files_for_agent(source_files, agent);
         let optional_content = generate_optional_rules_content(&filtered_source_files);
         if optional_content.is_empty() {
             continue;
@@ -161,12 +159,10 @@ mod tests {
                 description: description.to_string(),
                 always_apply,
                 file_matching_patterns: None,
-                allowed_agents: allowed_agents.map(|agents| {
-                    agents.into_iter().map(|agent| agent.to_string()).collect()
-                }),
-                blocked_agents: blocked_agents.map(|agents| {
-                    agents.into_iter().map(|agent| agent.to_string()).collect()
-                }),
+                allowed_agents: allowed_agents
+                    .map(|agents| agents.into_iter().map(|agent| agent.to_string()).collect()),
+                blocked_agents: blocked_agents
+                    .map(|agents| agents.into_iter().map(|agent| agent.to_string()).collect()),
             },
             body: body.to_string(),
             base_file_name: base_file_name.to_string(),

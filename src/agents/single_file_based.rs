@@ -190,13 +190,12 @@ mod tests {
             ),
         ];
 
-        let result =
-            generate_agent_file_contents(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            );
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
@@ -229,13 +228,12 @@ mod tests {
             ),
         ];
 
-        let result =
-            generate_agent_file_contents(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            );
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
@@ -275,13 +273,12 @@ mod tests {
             ),
         ];
 
-        let result =
-            generate_agent_file_contents(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            );
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
@@ -326,14 +323,13 @@ mod tests {
             "rule1 body",
         )];
 
-        let result =
-            check_in_sync(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            )
-            .unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(!result)
     }
@@ -351,14 +347,13 @@ mod tests {
 
         create_file(temp_dir.path(), "CLAUDE.md", "wrong content");
 
-        let result =
-            check_in_sync(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            )
-            .unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(!result);
     }
@@ -386,14 +381,13 @@ mod tests {
         let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional-agents-md.md\n";
         create_file(temp_dir.path(), "CLAUDE.md", expected_content);
 
-        let result =
-            check_in_sync(
-                &source_files,
-                temp_dir.path(),
-                "CLAUDE.md",
-                AGENTS_MD_GROUP_NAME,
-            )
-            .unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(result);
     }

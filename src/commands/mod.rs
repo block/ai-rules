@@ -98,7 +98,8 @@ mod tests {
         let out_of_sync_agents: Vec<_> = status_result
             .agent_statuses
             .iter()
-            .filter_map(|(agent, in_sync)| (!in_sync).then(|| agent.clone()))
+            .filter(|(_, in_sync)| !**in_sync)
+            .map(|(agent, _)| agent.clone())
             .collect();
         assert!(
             out_of_sync_agents.is_empty(),

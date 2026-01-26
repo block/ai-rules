@@ -4,13 +4,7 @@ pub const GENERATED_RULE_BODY_DIR: &str = ".generated-ai-rules";
 pub const AGENTS_MD_FILENAME: &str = "AGENTS.md";
 pub const AGENTS_MD_GROUP_NAME: &str = "agents-md";
 pub const AGENTS_MD_AGENTS: [&str; 7] = [
-    "amp",
-    "cline",
-    "codex",
-    "copilot",
-    "goose",
-    "kilocode",
-    "roo",
+    "amp", "cline", "codex", "copilot", "goose", "kilocode", "roo",
 ];
 pub const AI_RULE_CONFIG_FILENAME: &str = "ai-rules-config.yaml";
 pub const GENERATED_FILE_PREFIX: &str = "ai-rules-generated-";

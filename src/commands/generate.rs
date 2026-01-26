@@ -1,5 +1,7 @@
 use crate::agents::AgentToolRegistry;
 use crate::cli::ResolvedGenerateArgs;
+use crate::constants::AGENTS_MD_AGENTS;
+use crate::models::source_file::warn_on_partial_group_rules;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::operations::{self, GenerationResult};
 use crate::utils::file_utils::{traverse_project_directories, write_directory_files};
@@ -137,6 +139,12 @@ fn collect_all_files_for_directory(
     let mut files_by_agent: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
     if !source_files.is_empty() {
+        let has_agents_md_group = agents
+            .iter()
+            .any(|agent| AGENTS_MD_AGENTS.iter().any(|name| name == &agent.as_str()));
+        if has_agents_md_group {
+            warn_on_partial_group_rules(&source_files, &AGENTS_MD_AGENTS, "AGENTS.md");
+        }
         let body_files = operations::generate_body_contents(&source_files, current_dir);
         directory_files_to_write.extend(body_files);
         let optional_files =
@@ -344,16 +352,8 @@ blockedAgents: [goose]
 Not for goose optional rule
 "#;
 
-        create_file(
-            temp_dir.path(),
-            "ai-rules/claude-only.md",
-            claude_only_rule,
-        );
-        create_file(
-            temp_dir.path(),
-            "ai-rules/not-goose.md",
-            no_goose_rule,
-        );
+        create_file(temp_dir.path(), "ai-rules/claude-only.md", claude_only_rule);
+        create_file(temp_dir.path(), "ai-rules/not-goose.md", no_goose_rule);
 
         let args = ResolvedGenerateArgs {
             agents: Some(vec!["claude".to_string(), "goose".to_string()]),

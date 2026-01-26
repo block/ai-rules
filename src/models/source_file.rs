@@ -114,7 +114,6 @@ impl SourceFile {
         true
     }
 
-
     pub fn from_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let path = file_path.as_ref();
         let content = std::fs::read_to_string(path)
@@ -230,6 +229,35 @@ pub fn filter_source_files_for_agent_group(
         .filter(|source_file| source_file.applies_to_agents(agent_names))
         .cloned()
         .collect()
+}
+
+pub fn warn_on_partial_group_rules(
+    source_files: &[SourceFile],
+    agent_names: &[&str],
+    group_label: &str,
+) {
+    for source_file in source_files {
+        if source_file.applies_to_agents(agent_names) {
+            continue;
+        }
+
+        let applies_to_any = agent_names
+            .iter()
+            .any(|agent| source_file.applies_to_agent(agent));
+        if !applies_to_any {
+            continue;
+        }
+
+        let identifier = if source_file.base_file_name.is_empty() {
+            source_file.front_matter.description.as_str()
+        } else {
+            source_file.base_file_name.as_str()
+        };
+        eprintln!(
+            "Warning: Rule '{}' applies to a subset of {} agents; it will be excluded from {}.",
+            identifier, group_label, group_label
+        );
+    }
 }
 
 #[cfg(test)]

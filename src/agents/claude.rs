@@ -71,8 +71,7 @@ impl AgentRuleGenerator for ClaudeGenerator {
                 if let Ok(skill_files) = claude_skills::generate_skills_for_optional_rules(
                     &filtered_source_files,
                     current_dir,
-                )
-                {
+                ) {
                     all_files.extend(skill_files);
                 }
             }
@@ -281,10 +280,8 @@ mod tests {
         assert!(
             claude_content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md")
         );
-        assert!(
-            claude_content
-                .contains("@ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md")
-        );
+        assert!(claude_content
+            .contains("@ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md"));
     }
 
     #[test]
