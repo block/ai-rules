@@ -1,19 +1,17 @@
 use anyhow::Result;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub trait CommandGeneratorTrait {
-    /// Generate command files for this agent
-    /// Returns HashMap of output path -> content
-    fn generate_commands(&self, current_dir: &Path) -> HashMap<PathBuf, String>;
+    /// Generate command symlinks for this agent
+    /// Returns Vec of created symlink paths
+    fn generate_command_symlinks(&self, current_dir: &Path) -> Result<Vec<PathBuf>>;
 
-    /// Clean generated command files
+    /// Clean generated command files/symlinks
     fn clean_commands(&self, current_dir: &Path) -> Result<()>;
 
-    /// Check if command files are in sync
+    /// Check if command files/symlinks are in sync
     fn check_commands(&self, current_dir: &Path) -> Result<bool>;
 
     /// Get gitignore patterns for generated commands
-    #[allow(dead_code)]
     fn command_gitignore_patterns(&self) -> Vec<String>;
 }

@@ -629,18 +629,12 @@ Test command body"#;
         create_file(temp_dir.path(), "CLAUDE.md", claude_content);
     }
 
-    // Note: These tests are ignored because command generator implementations
-    // (ClaudeCommandGenerator, etc.) are in separate branches that haven't been
-    // merged yet. Once those branches are merged, remove the #[ignore] attributes.
-    // See branches: jonandersen/claude-command-folder, jonandersen/cursor-folder-command
-
     #[test]
-    #[ignore = "Requires command generator implementation to be merged"]
     fn test_status_reports_command_out_of_sync() {
         let temp_dir = TempDir::new().unwrap();
         setup_claude_with_command_source(&temp_dir);
 
-        // Create wrong command file
+        // Create wrong command file (not a symlink)
         create_file(
             temp_dir.path(),
             ".claude/commands/ai-rules/test-cmd.md",
@@ -659,12 +653,11 @@ Test command body"#;
         assert!(status.has_ai_rules);
         assert!(!status.body_files_out_of_sync);
 
-        // Claude should be marked out of sync because command file is wrong
+        // Claude should be marked out of sync because command file is wrong (not a symlink)
         assert!(!status.agent_statuses["claude"]);
     }
 
     #[test]
-    #[ignore = "Requires command generator implementation to be merged"]
     fn test_status_with_missing_command_files() {
         let temp_dir = TempDir::new().unwrap();
         setup_claude_with_command_source(&temp_dir);
@@ -744,7 +737,6 @@ Test command body"#;
     }
 
     #[test]
-    #[ignore = "Requires command generator implementation to be merged"]
     fn test_status_with_commands_in_sync() {
         let temp_dir = TempDir::new().unwrap();
 

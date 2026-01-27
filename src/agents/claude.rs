@@ -1,10 +1,13 @@
-use crate::agents::claude_command_generator::ClaudeCommandGenerator;
 use crate::agents::command_generator::CommandGeneratorTrait;
+use crate::agents::external_commands_generator::ExternalCommandsGenerator;
 use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::mcp_generator::{ExternalMcpGenerator, McpGeneratorTrait};
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::skills_generator::SkillsGeneratorTrait;
-use crate::constants::{CLAUDE_MCP_JSON, CLAUDE_SKILLS_DIR, GENERATED_FILE_PREFIX};
+use crate::constants::{
+    CLAUDE_COMMANDS_DIR, CLAUDE_COMMANDS_SUBDIR, CLAUDE_MCP_JSON, CLAUDE_SKILLS_DIR,
+    GENERATED_FILE_PREFIX,
+};
 use crate::models::source_file::SourceFile;
 use crate::operations::{
     claude_skills, generate_all_rule_references, generate_required_rule_references,
@@ -137,7 +140,10 @@ impl AgentRuleGenerator for ClaudeGenerator {
     }
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {
-        Some(Box::new(ClaudeCommandGenerator))
+        Some(Box::new(ExternalCommandsGenerator::with_subdir(
+            CLAUDE_COMMANDS_DIR,
+            CLAUDE_COMMANDS_SUBDIR,
+        )))
     }
 
     fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {

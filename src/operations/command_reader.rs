@@ -1,39 +1,19 @@
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use crate::constants::{AI_RULE_SOURCE_DIR, COMMANDS_DIR, GENERATED_COMMAND_SUFFIX, MD_EXTENSION};
 use crate::utils::file_utils::{
-    calculate_relative_path, create_relative_symlink, ensure_trailing_newline,
-    find_files_by_extension,
+    calculate_relative_path, create_relative_symlink, find_files_by_extension,
 };
-use crate::utils::frontmatter::{parse_frontmatter, ParsedContent};
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CommandFrontMatter {
-    #[serde(default)]
-    #[serde(rename = "allowed-tools")]
-    pub allowed_tools: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub model: Option<String>,
-}
-
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CommandFile {
     pub name: String,
     pub relative_path: PathBuf,
     pub full_path: PathBuf,
-    pub front_matter: Option<CommandFrontMatter>,
-    pub body: String,
-    pub raw_content: String,
 }
 
 /// Finds all command markdown files in ai-rules/commands/ directory
-#[allow(dead_code)]
 pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
     let commands_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(COMMANDS_DIR);
 
@@ -47,11 +27,6 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
     for path in command_paths {
         if let Some(file_stem) = path.file_stem() {
             if let Some(name) = file_stem.to_str() {
-                let raw_content = std::fs::read_to_string(&path)
-                    .with_context(|| format!("Failed to read command file: {}", path.display()))?;
-
-                let parsed: ParsedContent<CommandFrontMatter> = parse_frontmatter(&raw_content);
-
                 let relative_path = PathBuf::from(AI_RULE_SOURCE_DIR)
                     .join(COMMANDS_DIR)
                     .join(path.file_name().unwrap());
@@ -60,9 +35,6 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
                     name: name.to_string(),
                     relative_path,
                     full_path: path,
-                    front_matter: parsed.frontmatter,
-                    body: parsed.body,
-                    raw_content: parsed.raw_content,
                 });
             }
         }
@@ -72,7 +44,6 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
 }
 
 /// Creates individual symlinks for each command file in the target directory
-#[allow(dead_code)]
 pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec<PathBuf>> {
     let command_files = find_command_files(current_dir)?;
     if command_files.is_empty() {
@@ -95,7 +66,6 @@ pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<V
 }
 
 /// Removes generated command symlinks from target directory
-#[allow(dead_code)]
 pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<()> {
     use std::fs;
 
@@ -122,7 +92,6 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 }
 
 /// Checks if generated command symlinks are in sync
-#[allow(dead_code)]
 pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Result<bool> {
     use std::fs;
 
@@ -181,15 +150,118 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 }
 
 /// Returns gitignore patterns for generated command symlinks
-#[allow(dead_code)]
 pub fn get_command_gitignore_patterns(target_dir: &str) -> Vec<String> {
     vec![format!("{}/*-{}.md", target_dir, GENERATED_COMMAND_SUFFIX)]
 }
 
-/// Returns the body content of a command (without frontmatter) with trailing newline
-#[allow(dead_code)]
-pub fn get_command_body_content(command: &CommandFile) -> String {
-    ensure_trailing_newline(command.body.clone())
+// === Subfolder-based command symlinks (for Claude) ===
+
+/// Creates symlinks for commands in a subdirectory (e.g., .claude/commands/ai-rules/)
+pub fn create_command_symlinks_in_subdir(
+    current_dir: &Path,
+    target_dir: &str,
+    subdir: &str,
+) -> Result<Vec<PathBuf>> {
+    let command_files = find_command_files(current_dir)?;
+    if command_files.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut created_symlinks = Vec::new();
+
+    for command_file in command_files {
+        // Use original name in subfolder (e.g., ai-rules/commit.md)
+        let symlink_name = format!("{}.md", command_file.name);
+        let from_path = PathBuf::from(target_dir).join(subdir).join(&symlink_name);
+        let relative_source = calculate_relative_path(&from_path, &command_file.relative_path);
+        let symlink_path = current_dir.join(&from_path);
+
+        create_relative_symlink(&symlink_path, &relative_source)?;
+        created_symlinks.push(symlink_path);
+    }
+
+    Ok(created_symlinks)
+}
+
+/// Removes command symlinks from a subdirectory
+pub fn remove_command_symlinks_in_subdir(
+    current_dir: &Path,
+    target_dir: &str,
+    subdir: &str,
+) -> Result<()> {
+    use std::fs;
+
+    let subdir_path = current_dir.join(target_dir).join(subdir);
+    if subdir_path.exists() {
+        fs::remove_dir_all(&subdir_path)?;
+    }
+    Ok(())
+}
+
+/// Checks if command symlinks in subdirectory are in sync
+pub fn check_command_symlinks_in_subdir_in_sync(
+    current_dir: &Path,
+    target_dir: &str,
+    subdir: &str,
+) -> Result<bool> {
+    use std::fs;
+
+    let command_files = find_command_files(current_dir)?;
+    let subdir_path = current_dir.join(target_dir).join(subdir);
+
+    if command_files.is_empty() {
+        // No commands - subfolder should not exist
+        return Ok(!subdir_path.exists());
+    }
+
+    if !subdir_path.exists() {
+        return Ok(false);
+    }
+
+    // Check all expected symlinks exist and point to correct targets
+    for command_file in &command_files {
+        let symlink_name = format!("{}.md", command_file.name);
+        let symlink_path = subdir_path.join(&symlink_name);
+
+        if !symlink_path.is_symlink() {
+            return Ok(false);
+        }
+
+        let actual_target = fs::read_link(&symlink_path)?;
+        let resolved_target = if actual_target.is_absolute() {
+            actual_target
+        } else {
+            let symlink_parent = symlink_path.parent().unwrap_or(current_dir);
+            symlink_parent.join(&actual_target)
+        };
+
+        let resolved_canonical = resolved_target.canonicalize().unwrap_or(resolved_target);
+        let expected_canonical = command_file
+            .full_path
+            .canonicalize()
+            .unwrap_or(command_file.full_path.clone());
+
+        if resolved_canonical != expected_canonical {
+            return Ok(false);
+        }
+    }
+
+    // Check no extra files exist in subfolder
+    let mut expected_count = 0;
+    for entry in fs::read_dir(&subdir_path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_symlink() || path.is_file() {
+            expected_count += 1;
+        }
+    }
+
+    Ok(expected_count == command_files.len())
+}
+
+/// Returns gitignore patterns for subfolder-based command symlinks
+pub fn get_command_gitignore_patterns_subdir(target_dir: &str, subdir: &str) -> Vec<String> {
+    vec![format!("{}/{}/", target_dir, subdir)]
 }
 
 #[cfg(test)]
