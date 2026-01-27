@@ -37,13 +37,14 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
    ```bash
    ai-rules init
    ```
-   Creates an `ai-rules/` directory with an example rule file.
+   Creates an `ai-rules/` directory with example rule files. Rule files are markdown files containing coding guidelines, conventions, and instructions that get distributed to your AI coding agents.
 
-2. **Add your rules** in `ai-rules/*.md` files
+2. **Edit your rules** in `ai-rules/*.md` files to define your project's coding standards
 
 3. **Generate** agent-specific files:
    ```bash
-   ai-rules generate
+   ai-rules generate                            # All agents
+   ai-rules generate --agents claude,cursor     # Specific agents
    ```
    Creates `CLAUDE.md`, `.cursor/rules/*.mdc`, `AGENTS.md`, etc.
 
