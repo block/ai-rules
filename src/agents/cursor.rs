@@ -8,6 +8,7 @@ use crate::constants::{
     AGENTS_MD_FILENAME, CURSOR_COMMANDS_DIR, CURSOR_COMMANDS_SUBDIR, CURSOR_SKILLS_DIR,
     GENERATED_FILE_PREFIX, MCP_JSON,
 };
+use crate::models::source_file::filter_source_files_for_agent;
 use crate::models::SourceFile;
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_directory_exact_match, create_symlink_to_agents_md,
@@ -49,14 +50,15 @@ impl AgentRuleGenerator for CursorGenerator {
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
         let mut agent_files = HashMap::new();
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
 
-        if source_files.is_empty() {
+        if filtered_source_files.is_empty() {
             return agent_files;
         }
 
         let cursor_rules_dir = get_cursor_rules_dir(current_dir);
 
-        for source_file in source_files {
+        for source_file in &filtered_source_files {
             let generated_file_name = format!(
                 "{}{}.{}",
                 GENERATED_FILE_PREFIX, source_file.base_file_name, MDC_EXTENSION
@@ -78,12 +80,13 @@ impl AgentRuleGenerator for CursorGenerator {
         current_dir: &Path,
     ) -> Result<bool> {
         let cursor_rules_dir = get_cursor_rules_dir(current_dir);
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
 
-        if source_files.is_empty() {
+        if filtered_source_files.is_empty() {
             return Ok(!cursor_rules_dir.exists());
         }
 
-        let expected_files = self.generate_agent_contents(source_files, current_dir);
+        let expected_files = self.generate_agent_contents(&filtered_source_files, current_dir);
 
         check_directory_exact_match(&cursor_rules_dir, &expected_files)
     }
@@ -192,6 +195,8 @@ alwaysApply: true
                 description: "Test rule".to_string(),
                 always_apply: true,
                 file_matching_patterns: None,
+                allowed_agents: None,
+                blocked_agents: None,
             },
             body: "test body".to_string(),
         };

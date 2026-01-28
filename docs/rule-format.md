@@ -29,8 +29,38 @@ All fields are optional:
 | `description` | Context description that helps agents understand when to apply this rule if `alwaysApply` is `false` | - |
 | `alwaysApply` | `true` = referenced directly in agent rule files; `false` = included as optional rules based on context | `true` |
 | `fileMatching` | Glob patterns for which files this rule applies to (e.g., `"**/*.ts"`, `"src/**/*.py"`). Currently supported in Cursor. | - |
+| `allowedAgents` | Allowlist of agent names that should receive this rule (case-insensitive) | - |
+| `blockedAgents` | Blocklist of agent names that should not receive this rule (case-insensitive). Ignored if `allowedAgents` is set. | - |
 
 If frontmatter is omitted entirely, the file is treated as a regular markdown rule with default settings (`alwaysApply: true`).
+
+### Agent Filtering
+
+You can target rules to specific agents using `allowedAgents` or `blockedAgents`:
+
+```markdown
+---
+description: Cursor-specific formatting rules
+alwaysApply: true
+allowedAgents: [cursor]
+---
+
+# Cursor Rules
+...
+```
+
+```markdown
+---
+description: Rules for everyone except Goose
+alwaysApply: false
+blockedAgents: [goose]
+---
+
+# General Rules
+...
+```
+
+**Note:** Some agents share `AGENTS.md` (amp, cline, codex, copilot, goose, kilocode, roo). For shared files, a rule is included only if it applies to **all** of those agents; rules targeting a subset are excluded to avoid leaking instructions.
 
 ## Symlink Mode
 

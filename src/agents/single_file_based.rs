@@ -1,6 +1,8 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
+use crate::constants::{AGENTS_MD_AGENTS, AGENTS_MD_GROUP_NAME};
+use crate::models::source_file::filter_source_files_for_agent_group;
 use crate::models::SourceFile;
-use crate::operations::generate_all_rule_references;
+use crate::operations::generate_all_rule_references_for_agent;
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
 use std::collections::HashMap;
@@ -35,7 +37,14 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
-        generate_agent_file_contents(source_files, current_dir, &self.output_filename)
+        let filtered_source_files =
+            filter_source_files_for_agent_group(source_files, &AGENTS_MD_AGENTS);
+        generate_agent_file_contents(
+            &filtered_source_files,
+            current_dir,
+            &self.output_filename,
+            AGENTS_MD_GROUP_NAME,
+        )
     }
 
     fn check_agent_contents(
@@ -43,7 +52,14 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        check_in_sync(source_files, current_dir, &self.output_filename)
+        let filtered_source_files =
+            filter_source_files_for_agent_group(source_files, &AGENTS_MD_AGENTS);
+        check_in_sync(
+            &filtered_source_files,
+            current_dir,
+            &self.output_filename,
+            AGENTS_MD_GROUP_NAME,
+        )
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
@@ -78,11 +94,12 @@ pub fn generate_agent_file_contents(
     source_files: &[SourceFile],
     current_dir: &Path,
     output_filename: &str,
+    agent_name: &str,
 ) -> HashMap<PathBuf, String> {
     let mut agent_files = HashMap::new();
 
     if !source_files.is_empty() {
-        let content = generate_all_rule_references(source_files);
+        let content = generate_all_rule_references_for_agent(source_files, agent_name);
         let output_file_path = current_dir.join(output_filename);
         agent_files.insert(output_file_path, content);
     }
@@ -94,6 +111,7 @@ pub fn check_in_sync(
     source_files: &[SourceFile],
     current_dir: &Path,
     output_filename: &str,
+    agent_name: &str,
 ) -> Result<bool> {
     let file_path = current_dir.join(output_filename);
 
@@ -103,7 +121,8 @@ pub fn check_in_sync(
     if !file_path.exists() {
         return Ok(false);
     }
-    let expected_files = generate_agent_file_contents(source_files, current_dir, output_filename);
+    let expected_files =
+        generate_agent_file_contents(source_files, current_dir, output_filename, agent_name);
     let empty_string = String::new();
     let expected_content = expected_files.get(&file_path).unwrap_or(&empty_string);
     let actual_content = fs::read_to_string(&file_path)?;
@@ -114,6 +133,7 @@ pub fn check_in_sync(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::AGENTS_MD_GROUP_NAME;
     use crate::utils::test_utils::helpers::*;
     use tempfile::TempDir;
 
@@ -144,7 +164,8 @@ mod tests {
     fn test_generate_agent_file_contents_empty() {
         let temp_dir = TempDir::new().unwrap();
 
-        let result = generate_agent_file_contents(&[], temp_dir.path(), "CLAUDE.md");
+        let result =
+            generate_agent_file_contents(&[], temp_dir.path(), "CLAUDE.md", AGENTS_MD_GROUP_NAME);
 
         assert!(result.is_empty());
     }
@@ -169,7 +190,12 @@ mod tests {
             ),
         ];
 
-        let result = generate_agent_file_contents(&source_files, temp_dir.path(), "CLAUDE.md");
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
@@ -202,11 +228,17 @@ mod tests {
             ),
         ];
 
-        let result = generate_agent_file_contents(&source_files, temp_dir.path(), "CLAUDE.md");
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
-        let expected_content = "\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md\n";
+        let expected_content =
+            "\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional-agents-md.md\n";
 
         assert_eq!(
             result.get(&expected_path),
@@ -241,11 +273,16 @@ mod tests {
             ),
         ];
 
-        let result = generate_agent_file_contents(&source_files, temp_dir.path(), "CLAUDE.md");
+        let result = generate_agent_file_contents(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        );
 
         assert_eq!(result.len(), 1);
         let expected_path = temp_dir.path().join("CLAUDE.md");
-        let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n@ai-rules/.generated-ai-rules/ai-rules-generated-always2.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md\n";
+        let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n@ai-rules/.generated-ai-rules/ai-rules-generated-always2.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional-agents-md.md\n";
 
         assert_eq!(
             result.get(&expected_path),
@@ -257,7 +294,8 @@ mod tests {
     fn test_check_in_sync_empty_source_files_no_file() {
         let temp_dir = TempDir::new().unwrap();
 
-        let result = check_in_sync(&[], temp_dir.path(), "CLAUDE.md").unwrap();
+        let result =
+            check_in_sync(&[], temp_dir.path(), "CLAUDE.md", AGENTS_MD_GROUP_NAME).unwrap();
 
         assert!(result);
     }
@@ -268,7 +306,8 @@ mod tests {
 
         create_file(temp_dir.path(), "CLAUDE.md", "stale content");
 
-        let result = check_in_sync(&[], temp_dir.path(), "CLAUDE.md").unwrap();
+        let result =
+            check_in_sync(&[], temp_dir.path(), "CLAUDE.md", AGENTS_MD_GROUP_NAME).unwrap();
 
         assert!(!result);
     }
@@ -284,7 +323,13 @@ mod tests {
             "rule1 body",
         )];
 
-        let result = check_in_sync(&source_files, temp_dir.path(), "CLAUDE.md").unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(!result)
     }
@@ -302,7 +347,13 @@ mod tests {
 
         create_file(temp_dir.path(), "CLAUDE.md", "wrong content");
 
-        let result = check_in_sync(&source_files, temp_dir.path(), "CLAUDE.md").unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(!result);
     }
@@ -327,10 +378,16 @@ mod tests {
             ),
         ];
 
-        let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md\n";
+        let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional-agents-md.md\n";
         create_file(temp_dir.path(), "CLAUDE.md", expected_content);
 
-        let result = check_in_sync(&source_files, temp_dir.path(), "CLAUDE.md").unwrap();
+        let result = check_in_sync(
+            &source_files,
+            temp_dir.path(),
+            "CLAUDE.md",
+            AGENTS_MD_GROUP_NAME,
+        )
+        .unwrap();
 
         assert!(result);
     }

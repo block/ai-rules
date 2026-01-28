@@ -1,4 +1,4 @@
-use crate::constants::OPTIONAL_RULES_TEMPLATE;
+use crate::constants::{GENERATED_FILE_PREFIX, MD_EXTENSION, OPTIONAL_RULES_TEMPLATE};
 use crate::models::SourceFile;
 use crate::operations::body_generator::generated_body_file_reference_path;
 
@@ -47,6 +47,11 @@ pub fn generate_optional_rules_content(source_files: &[SourceFile]) -> String {
     main_template.replace("{{RULE_ENTRIES}}", &rule_entries)
 }
 
+pub fn optional_rules_filename_for_agent(agent_name: &str) -> String {
+    let normalized = agent_name.trim().to_lowercase().replace(' ', "-");
+    format!("{GENERATED_FILE_PREFIX}optional-{normalized}.{MD_EXTENSION}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,6 +69,8 @@ mod tests {
                 description: description.to_string(),
                 always_apply,
                 file_matching_patterns: Some(file_patterns),
+                allowed_agents: None,
+                blocked_agents: None,
             },
             body: body.to_string(),
             base_file_name: base_name.to_string(),
@@ -273,5 +280,11 @@ mod tests {
         assert!(result.contains(
             "ai-rules/.generated-ai-rules/ai-rules-generated-very_long_base_name_for_testing_purposes_that_exceeds_normal_length.md"
         ));
+    }
+
+    #[test]
+    fn test_optional_rules_filename_for_agent() {
+        let filename = optional_rules_filename_for_agent("Claude");
+        assert_eq!(filename, "ai-rules-generated-optional-claude.md");
     }
 }

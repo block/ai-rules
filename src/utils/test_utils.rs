@@ -55,6 +55,8 @@ pub mod helpers {
                 description: description.to_string(),
                 always_apply,
                 file_matching_patterns: Some(file_patterns),
+                allowed_agents: None,
+                blocked_agents: None,
             },
             body: body.to_string(),
         }

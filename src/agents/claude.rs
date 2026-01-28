@@ -8,9 +8,9 @@ use crate::constants::{
     CLAUDE_COMMANDS_DIR, CLAUDE_COMMANDS_SUBDIR, CLAUDE_MCP_JSON, CLAUDE_SKILLS_DIR,
     GENERATED_FILE_PREFIX,
 };
-use crate::models::source_file::SourceFile;
+use crate::models::source_file::{filter_source_files_for_agent, SourceFile};
 use crate::operations::{
-    claude_skills, generate_all_rule_references, generate_required_rule_references,
+    claude_skills, generate_all_rule_references_for_agent, generate_required_rule_references,
 };
 use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
@@ -55,21 +55,23 @@ impl AgentRuleGenerator for ClaudeGenerator {
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
         let mut all_files = HashMap::new();
+        let filtered_source_files = filter_source_files_for_agent(source_files, &self.name);
 
-        if !source_files.is_empty() {
+        if !filtered_source_files.is_empty() {
             // In skills mode: only generate required references (skills handle optional)
             // In non-skills mode: generate both required and optional references
             let content = if self.skills_mode {
-                generate_required_rule_references(source_files)
+                generate_required_rule_references(&filtered_source_files)
             } else {
-                generate_all_rule_references(source_files)
+                generate_all_rule_references_for_agent(&filtered_source_files, &self.name)
             };
             all_files.insert(current_dir.join(&self.output_filename), content);
 
             if self.skills_mode {
-                if let Ok(skill_files) =
-                    claude_skills::generate_skills_for_optional_rules(source_files, current_dir)
-                {
+                if let Ok(skill_files) = claude_skills::generate_skills_for_optional_rules(
+                    &filtered_source_files,
+                    current_dir,
+                ) {
                     all_files.extend(skill_files);
                 }
             }
@@ -83,9 +85,10 @@ impl AgentRuleGenerator for ClaudeGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
+        let filtered_source_files = filter_source_files_for_agent(source_files, &self.name);
         let file_path = current_dir.join(&self.output_filename);
 
-        if source_files.is_empty() {
+        if filtered_source_files.is_empty() {
             if file_path.exists() {
                 return Ok(false);
             }
@@ -94,9 +97,9 @@ impl AgentRuleGenerator for ClaudeGenerator {
                 return Ok(false);
             }
             let expected_content = if self.skills_mode {
-                generate_required_rule_references(source_files)
+                generate_required_rule_references(&filtered_source_files)
             } else {
-                generate_all_rule_references(source_files)
+                generate_all_rule_references_for_agent(&filtered_source_files, &self.name)
             };
             let actual_content = fs::read_to_string(&file_path)?;
             if actual_content != expected_content {
@@ -105,7 +108,7 @@ impl AgentRuleGenerator for ClaudeGenerator {
         }
 
         if self.skills_mode {
-            claude_skills::check_skills_in_sync(source_files, current_dir)
+            claude_skills::check_skills_in_sync(&filtered_source_files, current_dir)
         } else {
             Ok(true)
         }
@@ -277,9 +280,8 @@ mod tests {
         assert!(
             claude_content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md")
         );
-        assert!(
-            claude_content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md")
-        );
+        assert!(claude_content
+            .contains("@ai-rules/.generated-ai-rules/ai-rules-generated-optional-claude.md"));
     }
 
     #[test]

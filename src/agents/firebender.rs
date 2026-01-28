@@ -6,12 +6,13 @@ use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::constants::{
     AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_JSON, FIREBENDER_OVERLAY_JSON,
     FIREBENDER_SKILLS_DIR, FIREBENDER_USE_CURSOR_RULES_FIELD, MCP_SERVERS_FIELD,
-    OPTIONAL_RULES_FILENAME,
 };
+use crate::models::source_file::filter_source_files_for_agent;
 use crate::models::SourceFile;
 use crate::operations::body_generator::generated_body_file_reference_path;
 use crate::operations::find_command_files;
 use crate::operations::mcp_reader::extract_mcp_servers_for_firebender;
+use crate::operations::optional_rules::optional_rules_filename_for_agent;
 use crate::utils::file_utils::ensure_trailing_newline;
 use anyhow::{Context, Result};
 use serde_json::{json, Map, Value};
@@ -41,14 +42,15 @@ impl AgentRuleGenerator for FirebenderGenerator {
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
         let mut agent_files = HashMap::new();
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
 
-        if source_files.is_empty() {
+        if filtered_source_files.is_empty() {
             return agent_files;
         }
 
         let firebender_file_path = current_dir.join(FIREBENDER_JSON);
 
-        match generate_firebender_json_with_overlay(source_files, Some(current_dir)) {
+        match generate_firebender_json_with_overlay(&filtered_source_files, Some(current_dir)) {
             Ok(content) => {
                 agent_files.insert(firebender_file_path, content);
             }
@@ -66,12 +68,13 @@ impl AgentRuleGenerator for FirebenderGenerator {
         current_dir: &Path,
     ) -> Result<bool> {
         let firebender_file = current_dir.join(FIREBENDER_JSON);
+        let filtered_source_files = filter_source_files_for_agent(source_files, self.name());
 
-        if source_files.is_empty() {
+        if filtered_source_files.is_empty() {
             return Ok(!firebender_file.exists());
         }
 
-        let expected_files = self.generate_agent_contents(source_files, current_dir);
+        let expected_files = self.generate_agent_contents(&filtered_source_files, current_dir);
         let Some(expected_content) = expected_files.get(&firebender_file) else {
             return Ok(false);
         };
@@ -155,7 +158,8 @@ fn generate_firebender_json_with_overlay(
     let has_optional_rules = source_files.iter().any(|f| !f.front_matter.always_apply);
 
     if has_optional_rules {
-        let optional_path = generated_body_file_reference_path(OPTIONAL_RULES_FILENAME);
+        let optional_filename = optional_rules_filename_for_agent("firebender");
+        let optional_path = generated_body_file_reference_path(&optional_filename);
         rules.push(json!({
             "rulesPaths": optional_path.display().to_string()
         }));
@@ -364,7 +368,7 @@ mod tests {
 
         assert_eq!(
             rules[1]["rulesPaths"].as_str().unwrap(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-optional.md".to_string()
+            "ai-rules/.generated-ai-rules/ai-rules-generated-optional-firebender.md".to_string()
         );
         assert!(rules[1]["filePathMatches"].is_null());
         assert!(!parsed[FIREBENDER_USE_CURSOR_RULES_FIELD].as_bool().unwrap());
@@ -411,7 +415,7 @@ mod tests {
 
         assert_eq!(
             rules[2]["rulesPaths"].as_str().unwrap(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-optional.md".to_string()
+            "ai-rules/.generated-ai-rules/ai-rules-generated-optional-firebender.md".to_string()
         );
         assert!(rules[2]["filePathMatches"].is_null());
         assert!(!parsed[FIREBENDER_USE_CURSOR_RULES_FIELD].as_bool().unwrap());
