@@ -1,7 +1,8 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::{
     amp::AmpGenerator, claude::ClaudeGenerator, codex::CodexGenerator, cursor::CursorGenerator,
-    firebender::FirebenderGenerator, gemini::GeminiGenerator, roo::RooGenerator,
+    firebender::FirebenderGenerator, gemini::GeminiGenerator,
+    jetbrains_ai_assistant::JetbrainsAiAssistantGenerator, roo::RooGenerator,
     single_file_based::SingleFileBasedGenerator,
 };
 use crate::constants::AGENTS_MD_FILENAME;
@@ -37,6 +38,8 @@ impl AgentToolRegistry {
                 AGENTS_MD_FILENAME,
             )),
             Box::new(RooGenerator::new()),
+            Box::new(JetbrainsAiAssistantGenerator),
+            Box::new(SingleFileBasedGenerator::new("jetbrains-junie", AGENTS_MD_FILENAME)),
         ];
 
         for generator in generators {

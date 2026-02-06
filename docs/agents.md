@@ -13,6 +13,8 @@
 | **Firebender** | `firebender.json` | `firebender.json` (references `ai-rules/AGENTS.md`) | Embedded in `firebender.json` | Supports overlay files |
 | **Gemini** | `GEMINI.md` | `GEMINI.md` -> `ai-rules/AGENTS.md` | Embedded in `.gemini/settings.json` | |
 | **Goose** | `AGENTS.md` | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
+| **JetBrains AI Assistant** | `.aiassistant/rules/*.md` | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | Plain markdown, no frontmatter |
+| **JetBrains Junie** | `AGENTS.md` | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | Native AGENTS.md support |
 | **Kilocode** | `.kilocode/rules/*.md` | `.kilocode/rules/AGENTS.md` -> `../../ai-rules/AGENTS.md` | - | |
 | **Roo** | `.roo/rules/*.md` | `.roo/rules/AGENTS.md` -> `../../ai-rules/AGENTS.md` | `.roo/mcp.json` | |
 

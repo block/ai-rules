@@ -4,7 +4,7 @@ CLI tool to manage AI rules across different AI coding agents. Standardize and d
 
 ## Features
 
-- **Multi-Agent Support** - Generate rules for 11 AI coding agents from a single source
+- **Multi-Agent Support** - Generate rules for 13 AI coding agents from a single source
 - **Sync Management** - Track and maintain consistency across all generated rule files
 - **Selective Generation** - Generate rules for specific agents only
 - **MCP Support** - Generate Model Context Protocol configurations for compatible agents
@@ -85,7 +85,7 @@ See [Configuration Guide](docs/configuration.md) for all options.
 
 ## Supported Agents
 
-AMP, Claude Code, Cline, Codex, Copilot, Cursor, Firebender, Gemini, Goose, Kilocode, Roo
+AMP, Claude Code, Cline, Codex, Copilot, Cursor, Firebender, Gemini, Goose, JetBrains AI Assistant, JetBrains Junie, Kilocode, Roo
 
 See [Supported Agents](docs/agents.md) for detailed compatibility information.
 
