@@ -15,3 +15,16 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+/// Redirect stdout to /dev/null so all `println!` calls become no-ops.
+/// Stderr remains unaffected.
+#[cfg(unix)]
+pub fn suppress_stdout() {
+    use std::fs::File;
+    use std::os::unix::io::AsRawFd;
+    if let Ok(devnull) = File::open("/dev/null") {
+        unsafe {
+            libc::dup2(devnull.as_raw_fd(), libc::STDOUT_FILENO);
+        }
+    }
+}

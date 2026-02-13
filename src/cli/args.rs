@@ -10,6 +10,9 @@ pub struct Cli {
     #[arg(long)]
     pub summary: bool,
 
+    #[arg(long, help = "Suppress output on success")]
+    pub silent: bool,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
