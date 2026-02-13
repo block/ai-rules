@@ -15,6 +15,11 @@ const SUMMARY: &str = "Manage AI context rules across different AI coding agents
 pub fn run_cli() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    if cli.silent {
+        #[cfg(unix)]
+        crate::suppress_stdout();
+    }
+
     if cli.summary {
         println!("{SUMMARY}");
         return Ok(());

@@ -42,7 +42,13 @@ pub fn run_status(
     );
 
     let status = check_project_status(current_dir, args, use_claude_skills)?;
+    let exit_code = compute_exit_code(&status);
+
     print_status_results(&status);
+
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
 
     Ok(())
 }
@@ -204,11 +210,21 @@ fn check_skill_files(
     skills_gen.check_skills(current_dir)
 }
 
+fn compute_exit_code(status: &ProjectStatus) -> i32 {
+    if !status.has_ai_rules {
+        return 2;
+    }
+    if status.body_files_out_of_sync || status.agent_statuses.values().any(|&in_sync| !in_sync) {
+        return 1;
+    }
+    0
+}
+
 fn print_status_results(status: &ProjectStatus) {
     if !status.has_ai_rules {
         println!("  📝 No AI rules found in this project");
         println!("\n💡 Run 'ai-rules init' to get started");
-        std::process::exit(2);
+        return;
     }
 
     if status.body_files_out_of_sync {
@@ -226,10 +242,6 @@ fn print_status_results(status: &ProjectStatus) {
     }
 
     print_next_steps(status);
-
-    if status.body_files_out_of_sync || status.agent_statuses.values().any(|&in_sync| !in_sync) {
-        std::process::exit(1);
-    }
 }
 
 fn print_next_steps(status: &ProjectStatus) {
