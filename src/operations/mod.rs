@@ -11,7 +11,7 @@ pub mod skills_reader;
 pub mod source_reader;
 
 pub use body_generator::{
-    generate_all_rule_references, generate_body_contents, generate_required_rule_references,
+    generate_all_rule_references, generate_body_contents, generate_inlined_required_content,
 };
 pub use cleaner::clean_generated_files;
 #[allow(unused_imports)]

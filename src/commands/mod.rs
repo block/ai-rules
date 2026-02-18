@@ -99,7 +99,8 @@ mod tests {
             assert!(*in_sync, "All agents should be in sync after generation");
         }
 
-        // Change one generated file - modify CLAUDE.md
+        // Change one generated file - replace CLAUDE.md symlink with a regular file
+        fs::remove_file(project_path.join("CLAUDE.md")).unwrap();
         create_file(project_path, "CLAUDE.md", "modified content");
 
         // Check status again - should be out of sync

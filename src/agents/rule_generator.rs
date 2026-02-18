@@ -26,6 +26,18 @@ pub trait AgentRuleGenerator {
 
     fn generate_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>>;
 
+    fn uses_inlined_symlink(&self) -> bool {
+        false
+    }
+
+    fn generate_inlined_symlink(&self, _current_dir: &Path) -> Result<Vec<PathBuf>> {
+        Ok(vec![])
+    }
+
+    fn check_inlined_symlink(&self, _current_dir: &Path) -> Result<bool> {
+        Ok(true)
+    }
+
     fn mcp_generator(&self) -> Option<Box<dyn McpGeneratorTrait>> {
         None
     }

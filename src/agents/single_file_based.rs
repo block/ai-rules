@@ -1,7 +1,10 @@
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::models::SourceFile;
 use crate::operations::generate_all_rule_references;
-use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
+use crate::utils::file_utils::{
+    check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
+    create_symlink_to_inlined_file,
+};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
@@ -62,6 +65,25 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
         } else {
             Ok(vec![])
         }
+    }
+
+    fn uses_inlined_symlink(&self) -> bool {
+        true
+    }
+
+    fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
+        let success =
+            create_symlink_to_inlined_file(current_dir, Path::new(&self.output_filename))?;
+        if success {
+            Ok(vec![current_dir.join(&self.output_filename)])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
+        let output_file = current_dir.join(&self.output_filename);
+        check_inlined_file_symlink(current_dir, &output_file)
     }
 }
 

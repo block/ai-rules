@@ -1,4 +1,5 @@
 use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR};
+use crate::operations::body_generator::inlined_agents_relative_path;
 use anyhow::Result;
 
 use std::collections::HashMap;
@@ -95,6 +96,46 @@ pub fn check_agents_md_symlink(current_dir: &Path, symlink_path: &Path) -> Resul
     };
 
     // Canonicalize both paths to handle ".." components properly
+    let resolved_canonical = resolved_target.canonicalize().unwrap_or(resolved_target);
+    let expected_canonical = expected_target
+        .canonicalize()
+        .unwrap_or_else(|_| expected_target.clone());
+
+    Ok(resolved_canonical == expected_canonical && expected_target.exists())
+}
+
+pub fn create_symlink_to_inlined_file(current_dir: &Path, output_path: &Path) -> Result<bool> {
+    let inlined_relative = inlined_agents_relative_path();
+    let source_full_path = current_dir.join(&inlined_relative);
+
+    if !source_full_path.exists() {
+        return Ok(false);
+    }
+
+    let link = current_dir.join(output_path);
+    let relative_source = calculate_relative_path(output_path, &inlined_relative);
+
+    create_relative_symlink(&link, &relative_source)?;
+
+    Ok(true)
+}
+
+pub fn check_inlined_file_symlink(current_dir: &Path, symlink_path: &Path) -> Result<bool> {
+    if !symlink_path.is_symlink() {
+        return Ok(false);
+    }
+
+    let inlined_relative = inlined_agents_relative_path();
+    let expected_target = current_dir.join(&inlined_relative);
+    let actual_target = fs::read_link(symlink_path)?;
+
+    let resolved_target = if actual_target.is_absolute() {
+        actual_target
+    } else {
+        let symlink_parent = symlink_path.parent().unwrap_or(current_dir);
+        symlink_parent.join(&actual_target)
+    };
+
     let resolved_canonical = resolved_target.canonicalize().unwrap_or(resolved_target);
     let expected_canonical = expected_target
         .canonicalize()

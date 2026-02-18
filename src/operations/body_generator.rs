@@ -1,4 +1,6 @@
-use crate::constants::{AI_RULE_SOURCE_DIR, GENERATED_RULE_BODY_DIR, OPTIONAL_RULES_FILENAME};
+use crate::constants::{
+    AI_RULE_SOURCE_DIR, GENERATED_RULE_BODY_DIR, INLINED_AGENTS_FILENAME, OPTIONAL_RULES_FILENAME,
+};
 use crate::models::SourceFile;
 use crate::operations::optional_rules::generate_optional_rules_content;
 use crate::utils::file_utils::ensure_trailing_newline;
@@ -27,6 +29,12 @@ pub fn generate_body_contents(
     if !optional_content.is_empty() {
         let optional_file_path = generated_dir.join(OPTIONAL_RULES_FILENAME);
         body_files.insert(optional_file_path, optional_content);
+    }
+
+    let inlined_content = generate_inlined_agents_content(source_files);
+    if !inlined_content.is_empty() {
+        let inlined_file_path = generated_dir.join(INLINED_AGENTS_FILENAME);
+        body_files.insert(inlined_file_path, inlined_content);
     }
 
     body_files
@@ -72,6 +80,43 @@ pub fn generate_all_rule_references(source_files: &[SourceFile]) -> String {
     }
 
     content
+}
+
+pub fn generate_inlined_agents_content(source_files: &[SourceFile]) -> String {
+    let mut content = generate_inlined_required_content(source_files);
+
+    let optional_content = generate_optional_rules_content(source_files);
+    if !optional_content.is_empty() {
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        content.push_str(&optional_content);
+    }
+
+    content
+}
+
+pub fn generate_inlined_required_content(source_files: &[SourceFile]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    for source_file in source_files {
+        if source_file.front_matter.always_apply {
+            let mut part = String::new();
+            if !source_file.front_matter.description.is_empty() {
+                part.push_str(&format!("# {}\n\n", source_file.front_matter.description));
+            }
+            part.push_str(&ensure_trailing_newline(source_file.body.clone()));
+            parts.push(part);
+        }
+    }
+
+    parts.join("\n")
+}
+
+pub fn inlined_agents_relative_path() -> PathBuf {
+    Path::new(AI_RULE_SOURCE_DIR)
+        .join(GENERATED_RULE_BODY_DIR)
+        .join(INLINED_AGENTS_FILENAME)
 }
 
 #[cfg(test)]

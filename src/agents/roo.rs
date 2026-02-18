@@ -69,6 +69,18 @@ impl AgentRuleGenerator for RooGenerator {
         self.inner.generate_symlink(current_dir)
     }
 
+    fn uses_inlined_symlink(&self) -> bool {
+        self.inner.uses_inlined_symlink()
+    }
+
+    fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
+        self.inner.generate_inlined_symlink(current_dir)
+    }
+
+    fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
+        self.inner.check_inlined_symlink(current_dir)
+    }
+
     fn mcp_generator(&self) -> Option<Box<dyn McpGeneratorTrait>> {
         Some(Box::new(ExternalMcpGenerator::new(
             PathBuf::from(ROO_DIR).join(MCP_JSON),

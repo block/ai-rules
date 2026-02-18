@@ -1,0 +1,72 @@
+# Base repository guidelines
+
+# Repository Guidelines
+
+This is a Rust-based CLI tool called `ai-rules` that manages AI rules across different AI coding agents. The project uses Cargo for dependency management and Hermit for environment tooling.
+
+## Project Structure & Module Organization
+
+The codebase follows a modular Rust structure:
+
+- `src/main.rs` - Entry point that delegates to CLI runner
+- `src/cli/` - Command-line argument parsing with clap
+- `src/commands/` - Command implementations (init, generate, list_agents, status, clean)
+- `src/operations/` - Core business logic (body generation, gitignore updates, source reading)
+- `src/agents/` - Agent-specific configurations and handlers
+- `src/models/` - Data structures and types
+- `src/utils/` - Utility functions (file, git, goose, print, prompt)
+- `src/templates/` - Embedded template files for initialization
+- `scripts/` - Shell scripts for CI tasks (clippy-check.sh, clippy-fix.sh, release.sh)
+- `target/` - Build artifacts (gitignored)
+
+## Build, Test, and Development Commands
+
+**Build:**
+- `cargo build` - Debug build
+- `cargo build --release` - Optimized release build
+
+**Test:**
+- `cargo test` - Run all tests
+- `cargo test --verbose` - Run tests with detailed output
+- `cargo test <test_name>` - Run specific test
+
+**Linting & Formatting:**
+- `cargo fmt --all` - Format code
+- `cargo fmt --check` - Check formatting without modifying
+- `cargo clippy` - Run lints
+- `./scripts/clippy-check.sh` - Run clippy with strict warnings (used in CI)
+- `./scripts/clippy-fix.sh` - Auto-fix clippy issues
+
+**Security:**
+- `cargo audit` - Check for security vulnerabilities in dependencies
+
+**Run the tool:**
+- `cargo run -- <args>` - Run with arguments (e.g., `cargo run -- init`)
+
+## Coding Style & Naming Conventions
+
+**Code Organization:**
+- Each module has a `mod.rs` that exports public items
+- Tests are included in the same file using `#[cfg(test)]` modules
+- Use `anyhow::Result` for error handling with context
+- Prefer explicit error messages with `.with_context()`
+
+## Testing Guidelines
+
+**Framework:** Built-in Rust testing with `tempfile` for temporary directories
+
+**Test Organization:**
+- Unit tests live in `#[cfg(test)]` modules at the bottom of each source file
+- Test functions use `#[test]` attribute
+- Use descriptive test names: `test_<function>_<scenario>` (e.g., `test_load_config_no_file`)
+
+**Running Tests:**
+- `cargo test` - All tests
+- `cargo test <module>` - Tests in specific module
+- `cargo test <test_name>` - Specific test
+
+**Test Patterns:**
+- Use `tempfile::TempDir` for filesystem tests
+- Use `unwrap()` in tests (it's acceptable to panic on test failures)
+- Test both success and error cases
+- Include edge cases (empty inputs, invalid data, missing files)
