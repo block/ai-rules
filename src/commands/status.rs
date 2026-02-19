@@ -159,6 +159,9 @@ fn check_agent_files(
     if is_symlink_mode {
         return tool.check_symlink(current_dir);
     }
+    if tool.uses_inlined_symlink() {
+        return tool.check_inlined_symlink(current_dir);
+    }
     tool.check_agent_contents(source_files, current_dir)
 }
 
@@ -352,14 +355,19 @@ Test rule content"#;
     fn test_check_project_status_one_agent_out_of_sync() {
         let temp_dir = TempDir::new().unwrap();
 
+        // Generate files for claude only, then check that cursor is out of sync
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
-        create_file(
+        crate::commands::generate::run_generate(
             temp_dir.path(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
-            "Test rule content\n",
-        );
-        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
 
         assert_file_exists(temp_dir.path(), "ai-rules/test.md");
         assert_file_exists(
@@ -477,15 +485,19 @@ Test rule content"#;
     fn test_check_project_status_specific_agents_only() {
         let temp_dir = TempDir::new().unwrap();
 
+        // Generate for claude, then check status for claude only
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
-        create_file(
+        crate::commands::generate::run_generate(
             temp_dir.path(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
-            "Test rule content\n",
-        );
-        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
-        create_file(temp_dir.path(), "AGENTS.md", "irrelevant content");
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
@@ -518,14 +530,18 @@ Test rule content"#;
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
-        // Create agent files in sync
-        create_file(
+        // Generate agent files in sync (body files + inlined file + symlink)
+        crate::commands::generate::run_generate(
             temp_dir.path(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
-            "Test rule content\n",
-        );
-        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -533,6 +549,11 @@ Test rule content"#;
         let temp_dir = TempDir::new().unwrap();
         setup_claude_with_mcp_source(&temp_dir);
 
+        // Overwrite MCP file with wrong content (need to remove symlink first if it is one)
+        let mcp_path = temp_dir.path().join(".mcp.json");
+        if mcp_path.is_symlink() {
+            std::fs::remove_file(&mcp_path).unwrap();
+        }
         create_file(temp_dir.path(), ".mcp.json", "wrong content");
 
         let args = ResolvedStatusArgs {
@@ -555,6 +576,12 @@ Test rule content"#;
     fn test_status_with_missing_mcp_files() {
         let temp_dir = TempDir::new().unwrap();
         setup_claude_with_mcp_source(&temp_dir);
+
+        // Remove the generated MCP file to simulate missing state
+        let mcp_path = temp_dir.path().join(".mcp.json");
+        if mcp_path.exists() || mcp_path.is_symlink() {
+            std::fs::remove_file(&mcp_path).unwrap();
+        }
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
@@ -619,14 +646,18 @@ Test command body"#;
             TEST_COMMAND_CONTENT,
         );
 
-        // Create agent files in sync
-        create_file(
+        // Generate agent files in sync (body files + inlined file + symlink + commands)
+        crate::commands::generate::run_generate(
             temp_dir.path(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
-            "Test rule content\n",
-        );
-        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -634,7 +665,13 @@ Test command body"#;
         let temp_dir = TempDir::new().unwrap();
         setup_claude_with_command_source(&temp_dir);
 
-        // Create wrong command file (not a symlink)
+        // Replace the command symlink with a wrong regular file
+        let cmd_path = temp_dir
+            .path()
+            .join(".claude/commands/ai-rules/test-cmd.md");
+        if cmd_path.is_symlink() {
+            std::fs::remove_file(&cmd_path).unwrap();
+        }
         create_file(
             temp_dir.path(),
             ".claude/commands/ai-rules/test-cmd.md",
@@ -660,9 +697,33 @@ Test command body"#;
     #[test]
     fn test_status_with_missing_command_files() {
         let temp_dir = TempDir::new().unwrap();
-        setup_claude_with_command_source(&temp_dir);
 
-        // No command files generated yet
+        // Create source files with commands but don't generate commands
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/commands/test-cmd.md",
+            TEST_COMMAND_CONTENT,
+        );
+
+        // Generate agent files but without commands by generating, then removing commands
+        crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
+
+        // Remove the generated command symlinks to simulate missing state
+        let cmd_dir = temp_dir.path().join(".claude/commands/ai-rules");
+        if cmd_dir.exists() {
+            std::fs::remove_dir_all(&cmd_dir).unwrap();
+        }
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),
@@ -775,7 +836,10 @@ Test command body"#;
         assert!(status.agent_statuses["claude"]);
     }
 
-    fn setup_claude_with_skill_source(temp_dir: &TempDir) {
+    #[test]
+    fn test_status_detects_missing_skill_symlinks() {
+        let temp_dir = TempDir::new().unwrap();
+
         // Create source files with skills
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
         create_file(
@@ -784,22 +848,28 @@ Test command body"#;
             "---\nname: my-skill\ndescription: My skill\n---\n\nSkill content",
         );
 
-        // Create agent files in sync
-        create_file(
+        // Generate agent files
+        crate::commands::generate::run_generate(
             temp_dir.path(),
-            "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
-            "Test rule content\n",
-        );
-        let claude_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", claude_content);
-    }
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["claude".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+            false,
+        )
+        .unwrap();
 
-    #[test]
-    fn test_status_detects_missing_skill_symlinks() {
-        let temp_dir = TempDir::new().unwrap();
-        setup_claude_with_skill_source(&temp_dir);
-
-        // No skill symlinks generated yet
+        // Remove the generated skill symlinks to simulate missing state
+        let skill_symlink = temp_dir
+            .path()
+            .join(".claude/skills/ai-rules-generated-my-skill");
+        if skill_symlink.exists() || skill_symlink.is_symlink() {
+            std::fs::remove_file(&skill_symlink).unwrap_or_else(|_| {
+                std::fs::remove_dir_all(&skill_symlink).unwrap();
+            });
+        }
 
         let args = ResolvedStatusArgs {
             agents: Some(vec!["claude".to_string()]),

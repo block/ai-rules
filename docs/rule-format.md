@@ -32,6 +32,14 @@ All fields are optional:
 
 If frontmatter is omitted entirely, the file is treated as a regular markdown rule with default settings (`alwaysApply: true`).
 
+### How Standard Mode Works
+
+In Standard Mode, `ai-rules generate` produces a single inlined file at `ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md` that contains all rule content concatenated together. Each rule is preceded by a `# Description` heading (from its frontmatter `description` field) for structure.
+
+Most agent output files (e.g., `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) are created as **symlinks** pointing to this inlined file. This ensures every agent reads the same complete content without needing `@` file expansion support.
+
+Cursor and Firebender generate their own formats (`.mdc` files and JSON respectively) and do not use the inlined file.
+
 ## Symlink Mode
 
 Use Symlink Mode for simple setups where all agents share the same rules.

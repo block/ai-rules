@@ -9,10 +9,11 @@ use crate::constants::{
     GENERATED_FILE_PREFIX,
 };
 use crate::models::source_file::SourceFile;
-use crate::operations::{
-    claude_skills, generate_all_rule_references, generate_required_rule_references,
+use crate::operations::{claude_skills, generate_inlined_required_content};
+use crate::utils::file_utils::{
+    check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
+    create_symlink_to_inlined_file,
 };
-use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
@@ -56,23 +57,17 @@ impl AgentRuleGenerator for ClaudeGenerator {
     ) -> HashMap<PathBuf, String> {
         let mut all_files = HashMap::new();
 
-        if !source_files.is_empty() {
-            // In skills mode: only generate required references (skills handle optional)
-            // In non-skills mode: generate both required and optional references
-            let content = if self.skills_mode {
-                generate_required_rule_references(source_files)
-            } else {
-                generate_all_rule_references(source_files)
-            };
+        if !source_files.is_empty() && self.skills_mode {
+            // In skills mode: inline required content (not @ refs), skills handle optional
+            let content = generate_inlined_required_content(source_files);
             all_files.insert(current_dir.join(&self.output_filename), content);
 
-            if self.skills_mode {
-                if let Ok(skill_files) =
-                    claude_skills::generate_skills_for_optional_rules(source_files, current_dir)
-                {
-                    all_files.extend(skill_files);
-                }
+            if let Ok(skill_files) =
+                claude_skills::generate_skills_for_optional_rules(source_files, current_dir)
+            {
+                all_files.extend(skill_files);
             }
+            // Non-skills mode is handled by generate_inlined_symlink
         }
 
         all_files
@@ -93,11 +88,8 @@ impl AgentRuleGenerator for ClaudeGenerator {
             if !file_path.exists() {
                 return Ok(false);
             }
-            let expected_content = if self.skills_mode {
-                generate_required_rule_references(source_files)
-            } else {
-                generate_all_rule_references(source_files)
-            };
+            // In skills mode: check inlined required content
+            let expected_content = generate_inlined_required_content(source_files);
             let actual_content = fs::read_to_string(&file_path)?;
             if actual_content != expected_content {
                 return Ok(false);
@@ -131,6 +123,25 @@ impl AgentRuleGenerator for ClaudeGenerator {
         } else {
             Ok(vec![])
         }
+    }
+
+    fn uses_inlined_symlink(&self) -> bool {
+        !self.skills_mode
+    }
+
+    fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
+        let success =
+            create_symlink_to_inlined_file(current_dir, Path::new(&self.output_filename))?;
+        if success {
+            Ok(vec![current_dir.join(&self.output_filename)])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
+        let output_file = current_dir.join(&self.output_filename);
+        check_inlined_file_symlink(current_dir, &output_file)
     }
 
     fn mcp_generator(&self) -> Option<Box<dyn McpGeneratorTrait>> {
@@ -229,10 +240,8 @@ mod tests {
 
         let claude_md_path = temp_dir.path().join("CLAUDE.md");
         let claude_content = files.get(&claude_md_path).expect("CLAUDE.md should exist");
-        assert_eq!(
-            claude_content,
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n"
-        );
+        // In skills mode, CLAUDE.md should contain inlined required content with description header
+        assert_eq!(claude_content, "# Always\n\nAlways content\n");
 
         let skill_path = temp_dir
             .path()
@@ -268,18 +277,9 @@ mod tests {
 
         let files = generator.generate_agent_contents(&source_files, temp_dir.path());
 
-        // In non-skills mode, only CLAUDE.md should be generated
-        assert_eq!(files.len(), 1);
-
-        let claude_md_path = temp_dir.path().join("CLAUDE.md");
-        let claude_content = files.get(&claude_md_path).expect("CLAUDE.md should exist");
-        // Should contain both required and optional reference
-        assert!(
-            claude_content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md")
-        );
-        assert!(
-            claude_content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md")
-        );
+        // In non-skills mode, generate_agent_contents returns empty
+        // (symlinks handle output via generate_inlined_symlink)
+        assert_eq!(files.len(), 0);
     }
 
     #[test]
@@ -297,8 +297,8 @@ mod tests {
             .unwrap();
         assert!(!result);
 
-        // Create CLAUDE.md
-        let claude_content = generate_required_rule_references(&source_files);
+        // Create CLAUDE.md with inlined required content
+        let claude_content = generate_inlined_required_content(&source_files);
         create_file(temp_dir.path(), "CLAUDE.md", &claude_content);
 
         // Still not in sync (missing skill)

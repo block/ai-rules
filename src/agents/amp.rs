@@ -8,7 +8,10 @@ use crate::agents::single_file_based::{
 use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::constants::{AGENTS_MD_FILENAME, AMP_COMMANDS_DIR, AMP_SKILLS_DIR};
 use crate::models::SourceFile;
-use crate::utils::file_utils::{check_agents_md_symlink, create_symlink_to_agents_md};
+use crate::utils::file_utils::{
+    check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
+    create_symlink_to_inlined_file,
+};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -56,6 +59,24 @@ impl AgentRuleGenerator for AmpGenerator {
         } else {
             Ok(vec![])
         }
+    }
+
+    fn uses_inlined_symlink(&self) -> bool {
+        true
+    }
+
+    fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
+        let success = create_symlink_to_inlined_file(current_dir, Path::new(AGENTS_MD_FILENAME))?;
+        if success {
+            Ok(vec![current_dir.join(AGENTS_MD_FILENAME)])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
+        let output_file = current_dir.join(AGENTS_MD_FILENAME);
+        check_inlined_file_symlink(current_dir, &output_file)
     }
 
     fn command_generator(&self) -> Option<Box<dyn CommandGeneratorTrait>> {

@@ -2,12 +2,14 @@
 
 ## Standard Mode
 
-For projects using YAML frontmatter in rule files:
+For projects using YAML frontmatter in rule files. Agent output files are symlinks to a single inlined file containing all rule content:
 
 ```
 monorepo/
 ├── ai-rules/                     # Global rule files
 │   ├── .generated-ai-rules/      # Processed files (generated)
+│   │   ├── ai-rules-generated-general.md
+│   │   └── ai-rules-generated-AGENTS.md  # Inlined file (all content)
 │   ├── commands/                 # Custom commands
 │   │   └── commit.md
 │   ├── skills/                   # User-defined skills
@@ -22,8 +24,8 @@ monorepo/
 │   │   ├── .generated-ai-rules/
 │   │   ├── react.md
 │   │   └── styling.md
-│   ├── CLAUDE.md                 # Generated
-│   ├── AGENTS.md                 # Generated
+│   ├── CLAUDE.md                 # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
+│   ├── AGENTS.md                 # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 │   ├── .cursor/rules/            # Generated (*.mdc)
 │   └── src/
 │
@@ -32,14 +34,14 @@ monorepo/
 │   │   ├── .generated-ai-rules/
 │   │   ├── api.md
 │   │   └── database.md
-│   ├── CLAUDE.md
-│   ├── AGENTS.md
+│   ├── CLAUDE.md                 # Symlink -> inlined file
+│   ├── AGENTS.md                 # Symlink -> inlined file
 │   └── api/
 │
-├── CLAUDE.md                     # Root rules (generated)
-├── AGENTS.md                     # Root rules (generated)
-├── .cursor/rules/                # Root Cursor rules (generated)
-├── .clinerules/                  # Root Cline rules (generated)
+├── CLAUDE.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
+├── AGENTS.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
+├── .cursor/rules/                # Root Cursor rules (generated *.mdc files)
+├── .clinerules/                  # Root Cline rules (symlink)
 ├── .mcp.json                     # Root MCP config (generated)
 └── firebender.json               # Root Firebender config (generated)
 ```

@@ -70,15 +70,35 @@ fn generate_files(
             }
         }
     } else {
-        let file_collection = collect_all_files_for_directory(current_dir, agents, registry)?;
+        let source_files = operations::find_source_files(current_dir)?;
 
-        for (agent, file_paths) in file_collection.files_by_agent {
-            for file_path in file_paths {
-                result.add_file(&agent, file_path);
+        if !source_files.is_empty() {
+            // Generate and write body files first (includes inlined file)
+            let body_files = operations::generate_body_contents(&source_files, current_dir);
+            write_directory_files(&body_files)?;
+
+            // Process agents: symlink-based agents get symlinks, content-based agents get files
+            let mut content_files: HashMap<PathBuf, String> = HashMap::new();
+
+            for agent in agents {
+                if let Some(tool) = registry.get_tool(agent) {
+                    if tool.uses_inlined_symlink() {
+                        let created_symlinks = tool.generate_inlined_symlink(current_dir)?;
+                        for symlink_path in created_symlinks {
+                            result.add_file(agent, symlink_path);
+                        }
+                    } else {
+                        let agent_files = tool.generate_agent_contents(&source_files, current_dir);
+                        for file_path in agent_files.keys() {
+                            result.add_file(agent, file_path.clone());
+                        }
+                        content_files.extend(agent_files);
+                    }
+                }
             }
-        }
 
-        write_directory_files(&file_collection.directory_files_to_write)?;
+            write_directory_files(&content_files)?;
+        }
     }
 
     let mut mcp_files_to_write: HashMap<PathBuf, String> = HashMap::new();
@@ -120,40 +140,6 @@ fn generate_files(
     }
 
     Ok(())
-}
-
-struct AgentFilesCollection {
-    directory_files_to_write: HashMap<PathBuf, String>,
-    files_by_agent: HashMap<String, Vec<PathBuf>>,
-}
-
-fn collect_all_files_for_directory(
-    current_dir: &Path,
-    agents: &[String],
-    registry: &AgentToolRegistry,
-) -> Result<AgentFilesCollection> {
-    let source_files = operations::find_source_files(current_dir)?;
-    let mut directory_files_to_write: HashMap<PathBuf, String> = HashMap::new();
-    let mut files_by_agent: HashMap<String, Vec<PathBuf>> = HashMap::new();
-
-    if !source_files.is_empty() {
-        let body_files = operations::generate_body_contents(&source_files, current_dir);
-        directory_files_to_write.extend(body_files);
-
-        for agent in agents {
-            if let Some(tool) = registry.get_tool(agent) {
-                let agent_files = tool.generate_agent_contents(&source_files, current_dir);
-                let agent_file_paths: Vec<PathBuf> = agent_files.keys().cloned().collect();
-                files_by_agent.insert(agent.clone(), agent_file_paths);
-                directory_files_to_write.extend(agent_files);
-            }
-        }
-    }
-
-    Ok(AgentFilesCollection {
-        directory_files_to_write,
-        files_by_agent,
-    })
 }
 
 #[cfg(test)]
@@ -206,6 +192,10 @@ Test rule content"#;
             temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
         );
+        assert_file_exists(
+            temp_dir.path(),
+            "ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md",
+        );
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
         assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
@@ -213,16 +203,18 @@ Test rule content"#;
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
-        assert_file_content(
-            temp_dir.path(),
-            "CLAUDE.md",
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n",
-        );
-        assert_file_content(
-            temp_dir.path(),
-            AGENTS_MD_FILENAME,
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n",
-        );
+        // CLAUDE.md and AGENTS.md should be symlinks to inlined file
+        let claude_path = temp_dir.path().join("CLAUDE.md");
+        let agents_path = temp_dir.path().join(AGENTS_MD_FILENAME);
+        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
+        assert!(agents_path.is_symlink(), "AGENTS.md should be a symlink");
+
+        // Content should be inlined with description header (not @ references)
+        let claude_content = std::fs::read_to_string(&claude_path).unwrap();
+        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+        let agents_content = std::fs::read_to_string(&agents_path).unwrap();
+        assert_eq!(agents_content, "# Test rule\n\nTest rule content\n");
+
         assert_file_content(
             temp_dir.path(),
             ".cursor/rules/ai-rules-generated-test.mdc",
@@ -241,7 +233,7 @@ Test rule content
             "Test rule content\n",
         );
 
-        // Verify all generated files have trailing newlines
+        // Verify generated files have trailing newlines
         assert_file_has_trailing_newline(temp_dir.path(), "CLAUDE.md");
         assert_file_has_trailing_newline(temp_dir.path(), AGENTS_MD_FILENAME);
         assert_file_has_trailing_newline(
@@ -303,11 +295,12 @@ Test rule content
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
-        assert_file_content(
-            temp_dir.path(),
-            "CLAUDE.md",
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n",
-        );
+        // CLAUDE.md should be a symlink with inlined content and description header
+        let claude_path = temp_dir.path().join("CLAUDE.md");
+        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
+        let claude_content = std::fs::read_to_string(&claude_path).unwrap();
+        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+
         assert_file_content(
             temp_dir.path(),
             ".cursor/rules/ai-rules-generated-test.mdc",
@@ -454,11 +447,11 @@ Test rule content
             "ai-rules/.generated-ai-rules/ai-rules-generated-old.md",
         );
 
-        assert_file_content(
-            temp_dir.path(),
-            "CLAUDE.md",
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n",
-        );
+        // CLAUDE.md should be a symlink with inlined content and description header
+        let claude_path = temp_dir.path().join("CLAUDE.md");
+        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
+        let claude_content = std::fs::read_to_string(&claude_path).unwrap();
+        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
     }
 
     #[test]
@@ -645,19 +638,18 @@ New body content"#;
         );
         assert!(result2.is_ok());
 
+        // CLAUDE.md should still be a symlink (now to inlined file instead of AGENTS.md)
         assert!(claude_path.exists());
-        assert!(!claude_path.is_symlink());
+        assert!(claude_path.is_symlink());
 
         // Should have normal generated files
         assert_file_exists(
             temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-new.md",
         );
-        assert_file_content(
-            temp_dir.path(),
-            "CLAUDE.md",
-            "@ai-rules/.generated-ai-rules/ai-rules-generated-new.md\n",
-        );
+        // Content should be inlined with description header
+        let claude_content = std::fs::read_to_string(&claude_path).unwrap();
+        assert_eq!(claude_content, "# New rule\n\nNew body content\n");
     }
 
     #[test]

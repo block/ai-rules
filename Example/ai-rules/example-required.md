@@ -5,4 +5,4 @@ alwaysApply: true
 fileMatching: "**/*.ts, **/*.tsx"
 ---
 
-Rule we always wanna see
+Rule we always wanna see.
