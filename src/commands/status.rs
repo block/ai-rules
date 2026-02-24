@@ -160,6 +160,12 @@ fn check_agent_files(
         return tool.check_symlink(current_dir);
     }
     if tool.uses_inlined_symlink() {
+        // Nested traversal visits directories with no local ai-rules source files.
+        // In those directories, treat inlined-symlink agents like content agents:
+        // the "empty source" state should validate as no generated files expected.
+        if source_files.is_empty() {
+            return tool.check_agent_contents(source_files, current_dir);
+        }
         return tool.check_inlined_symlink(current_dir);
     }
     tool.check_agent_contents(source_files, current_dir)
@@ -479,6 +485,42 @@ Test rule content"#;
         assert!(status.has_ai_rules);
         assert!(status.body_files_out_of_sync);
         assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_check_project_status_nested_depth_1_remains_in_sync_after_generate() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/root-rule.md", TEST_RULE_CONTENT);
+        std::fs::create_dir_all(temp_dir.path().join("subdir")).unwrap();
+
+        crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: None,
+                command_agents: None,
+                gitignore: false,
+                nested_depth: 1,
+            },
+            false,
+        )
+        .unwrap();
+
+        let args = ResolvedStatusArgs {
+            agents: None,
+            command_agents: None,
+            nested_depth: 1,
+        };
+        let result = check_project_status(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        assert!(status.has_ai_rules);
+        assert!(!status.body_files_out_of_sync);
+        assert!(status.agent_statuses["claude"]);
+        assert!(status.agent_statuses["codex"]);
+        assert!(status.agent_statuses["gemini"]);
+        assert!(status.agent_statuses["goose"]);
     }
 
     #[test]
