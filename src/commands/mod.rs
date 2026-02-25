@@ -2,12 +2,14 @@ mod clean;
 mod generate;
 mod init;
 mod list_agents;
+mod migrate;
 mod status;
 
 pub use clean::run_clean;
 pub use generate::run_generate;
 pub use init::run_init;
 pub use list_agents::run_list_agents;
+pub use migrate::run_migrate;
 pub use status::run_status;
 
 #[cfg(test)]

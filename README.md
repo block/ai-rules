@@ -61,6 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
 | `ai-rules generate` | Generate rules for AI coding agents |
 | `ai-rules status` | Show sync status of AI rules |
 | `ai-rules clean` | Remove all generated files |
+| `ai-rules migrate` | Migrate from ai-rules/ layout to agents.md standard (one-way) |
 | `ai-rules list-agents` | List all supported agents |
 
 ### Common Options
@@ -89,6 +90,10 @@ AMP, Claude Code, Cline, Codex, Copilot, Cursor, Firebender, Gemini, Goose, Kilo
 
 See [Supported Agents](docs/agents.md) for detailed compatibility information.
 
+## Migration to agents.md standard
+
+You can migrate from the ai-rules–managed layout to the [agents.md](https://agents.md/) standard: a single `AGENTS.md` at project root, skills in `.agents/skills/`, and commands in `.agents/commands/`. Run `ai-rules migrate` to write root `AGENTS.md`, move `ai-rules/skills` and `ai-rules/commands` into `.agents/`, remove generated files, and purge the `ai-rules/` directory. **This is one-way**; after migrating, the project no longer uses ai-rules generate/clean/status for that content. Use `--dry-run` first to see what would be done, then run without it (and confirm) or with `--force` to migrate. See [Migration guide](docs/migration.md) for details.
+
 ## Documentation
 
 - [Configuration](docs/configuration.md) - Config file options and precedence
@@ -97,6 +102,7 @@ See [Supported Agents](docs/agents.md) for detailed compatibility information.
 - [MCP Configuration](docs/mcp.md) - Model Context Protocol setup
 - [Commands and Skills](docs/commands-and-skills.md) - Custom commands and skills
 - [Project Structure](docs/project-structure.md) - Example project layouts
+- [Migration to agents.md](docs/migration.md) - One-way migration from ai-rules/ layout
 
 ## Development
 
