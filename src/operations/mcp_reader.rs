@@ -11,6 +11,7 @@ use std::path::Path;
 #[serde(rename_all = "lowercase")]
 pub enum McpServerType {
     Http,
+    Sse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -350,5 +351,50 @@ mod tests {
 
         let result = read_mcp_config(temp_dir.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_mcp_config_sse_server() {
+        let temp_dir = TempDir::new().unwrap();
+        let sse_config = r#"{
+  "mcpServers": {
+    "jetbrains": {
+      "type": "sse",
+      "url": "http://localhost:64342/sse"
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", sse_config);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let content = result.unwrap();
+        assert!(content.contains("jetbrains"));
+        assert!(content.contains("sse"));
+        assert!(content.contains("http://localhost:64342/sse"));
+    }
+
+    #[test]
+    fn test_read_mcp_config_mixed_http_and_sse() {
+        let temp_dir = TempDir::new().unwrap();
+        let mixed_config = r#"{
+  "mcpServers": {
+    "remote-http": {
+      "type": "http",
+      "url": "https://remote.example.com/mcp"
+    },
+    "local-sse": {
+      "type": "sse",
+      "url": "http://localhost:64342/sse"
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", mixed_config);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let content = result.unwrap();
+        assert!(content.contains("remote-http"));
+        assert!(content.contains("local-sse"));
     }
 }
