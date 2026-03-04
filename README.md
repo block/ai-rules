@@ -53,6 +53,17 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
    ai-rules status
    ```
 
+## Validating Your Rules
+
+After generating or updating rules, validate them to catch issues before they reach your AI agents:
+
+```bash
+npx cursor-doctor check    # CI-friendly validation
+npx cursor-doctor scan     # Local validation with detailed feedback
+```
+
+This catches broken frontmatter, conflicting instructions, and vague rules that the AI will ignore. Run `check` in CI pipelines or pre-commit hooks to maintain rule quality.
+
 ## Commands
 
 | Command | Description |
