@@ -40,8 +40,13 @@ pub fn run_cli() -> anyhow::Result<()> {
             run_status(&current_dir, final_args, use_claude_skills)
         }
         Some(Commands::Clean(args)) => {
-            let nested_depth = args.nested_depth_args.with_config(config.as_ref());
-            run_clean(&current_dir, nested_depth, use_claude_skills)
+            let (nested_depth, include_dirs) = args.nested_depth_args.with_config(config.as_ref());
+            run_clean(
+                &current_dir,
+                nested_depth,
+                include_dirs.as_deref(),
+                use_claude_skills,
+            )
         }
         Some(Commands::ListAgents) => run_list_agents(use_claude_skills),
         None => {

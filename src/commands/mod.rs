@@ -71,6 +71,7 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
+            include_dirs: None,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         if let Err(e) = &generate_result {
@@ -91,6 +92,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            include_dirs: None,
         };
         let status_result = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_result.has_ai_rules);
@@ -108,6 +110,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            include_dirs: None,
         };
         let status_after_change = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_after_change.has_ai_rules);
@@ -127,7 +130,7 @@ mod tests {
         );
 
         // Clean - should remove all generated files
-        let clean_result = run_clean(project_path, nested_depth, false);
+        let clean_result = run_clean(project_path, nested_depth, None, false);
         assert!(clean_result.is_ok());
 
         assert_file_not_exists(project_path, "ai-rules/.generated-ai-rules");
@@ -153,6 +156,7 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
+            include_dirs: None,
         };
         let generate_result = run_generate(project_path, generate_args, false);
         assert!(generate_result.is_ok());
@@ -178,6 +182,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            include_dirs: None,
         };
         let status_after_change = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_after_change.has_ai_rules);

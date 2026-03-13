@@ -74,7 +74,7 @@ pub fn check_project_status(
     let mut has_ai_rules = false;
 
     let traversal_result =
-        file_utils::traverse_project_directories(current_dir, args.nested_depth, 0, &mut |dir| {
+        file_utils::traverse_project_directories(current_dir, args.nested_depth, 0, args.include_dirs.as_deref(), &mut |dir| {
             let is_symlink_mode = detect_symlink_mode(dir);
             let mut source_files = Vec::new();
             if is_symlink_mode {
@@ -280,6 +280,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -300,6 +301,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -321,6 +323,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -348,6 +351,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -370,6 +374,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -387,6 +392,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -423,6 +429,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -455,6 +462,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth,
+                include_dirs: None,
             },
             false,
         )
@@ -464,6 +472,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -477,6 +486,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: 1,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -501,6 +511,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: 1,
+                include_dirs: None,
             },
             false,
         )
@@ -510,6 +521,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: 1,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -536,6 +548,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -545,6 +558,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -580,6 +594,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -602,6 +617,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -629,6 +645,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -654,6 +671,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -663,6 +681,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -696,6 +715,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -724,6 +744,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -756,6 +777,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -771,6 +793,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -803,6 +826,7 @@ Test command body"#;
                 command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -821,6 +845,7 @@ Test command body"#;
             agents: Some(vec!["amp".to_string()]),
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -857,6 +882,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -866,6 +892,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -898,6 +925,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         )
@@ -917,6 +945,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -947,6 +976,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -956,6 +986,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -982,6 +1013,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -991,6 +1023,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -1022,6 +1055,7 @@ Test command body"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -1034,6 +1068,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());

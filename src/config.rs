@@ -11,6 +11,7 @@ pub struct Config {
     pub gitignore: Option<bool>,
     pub no_gitignore: Option<bool>,
     pub nested_depth: Option<usize>,
+    pub include_dirs: Option<Vec<String>>,
     pub use_claude_skills: Option<bool>,
 }
 
@@ -316,5 +317,40 @@ command_agents: ["claude", "amp"]
             result.unwrap().agents,
             Some(vec!["git-root-agent".to_string()])
         );
+    }
+
+    #[test]
+    fn test_load_config_with_include_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["claude"]
+nested_depth: 3
+include_dirs: ["packages", "vendor"]
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert_eq!(
+            config.include_dirs,
+            Some(vec!["packages".to_string(), "vendor".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_load_config_without_include_dirs_defaults_to_none() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_content = r#"
+agents: ["claude"]
+"#;
+        create_config_file(temp_dir.path(), config_content);
+
+        let result = load_config(temp_dir.path()).unwrap();
+        assert!(result.is_some());
+        let config = result.unwrap();
+
+        assert!(config.include_dirs.is_none());
     }
 }

@@ -159,6 +159,7 @@ pub fn traverse_project_directories<F>(
     current_dir: &Path,
     max_depth: usize,
     current_depth: usize,
+    include_dirs: Option<&[String]>,
     callback: &mut F,
 ) -> Result<()>
 where
@@ -181,7 +182,7 @@ where
                 .and_then(|name| name.to_str())
                 .unwrap_or("");
 
-            if should_traverse_directory(dir_name) {
+            if should_traverse_directory(dir_name, include_dirs) {
                 dirs.push(path);
             }
         }
@@ -191,7 +192,7 @@ where
     dirs.sort();
 
     for dir in dirs {
-        traverse_project_directories(&dir, max_depth, current_depth + 1, callback)?;
+        traverse_project_directories(&dir, max_depth, current_depth + 1, include_dirs, callback)?;
     }
 
     Ok(())
@@ -249,8 +250,17 @@ const EXCLUDED_DIRECTORIES: &[&str] = &[
     "logs",
 ];
 
-fn should_traverse_directory(dir_name: &str) -> bool {
-    !dir_name.starts_with('.') && !EXCLUDED_DIRECTORIES.contains(&dir_name)
+fn should_traverse_directory(dir_name: &str, include_dirs: Option<&[String]>) -> bool {
+    if dir_name.starts_with('.') {
+        return false;
+    }
+    if EXCLUDED_DIRECTORIES.contains(&dir_name) {
+        if let Some(included) = include_dirs {
+            return included.iter().any(|d| d == dir_name);
+        }
+        return false;
+    }
+    true
 }
 
 #[cfg(test)]
@@ -379,13 +389,27 @@ mod tests {
 
     #[test]
     fn test_should_traverse_directory() {
-        assert!(should_traverse_directory("src"));
-        assert!(should_traverse_directory("utils"));
-        assert!(!should_traverse_directory(".git"));
-        assert!(!should_traverse_directory(".hidden"));
-        assert!(!should_traverse_directory("target"));
-        assert!(!should_traverse_directory("node_modules"));
-        assert!(!should_traverse_directory("build"));
+        assert!(should_traverse_directory("src", None));
+        assert!(should_traverse_directory("utils", None));
+        assert!(!should_traverse_directory(".git", None));
+        assert!(!should_traverse_directory(".hidden", None));
+        assert!(!should_traverse_directory("target", None));
+        assert!(!should_traverse_directory("node_modules", None));
+        assert!(!should_traverse_directory("build", None));
+    }
+
+    #[test]
+    fn test_should_traverse_directory_with_include_dirs() {
+        let include = vec!["packages".to_string()];
+        assert!(should_traverse_directory("packages", Some(&include)));
+        assert!(!should_traverse_directory("node_modules", Some(&include)));
+        assert!(!should_traverse_directory(".git", Some(&include)));
+        assert!(should_traverse_directory("src", Some(&include)));
+
+        let include_multi = vec!["packages".to_string(), "vendor".to_string()];
+        assert!(should_traverse_directory("packages", Some(&include_multi)));
+        assert!(should_traverse_directory("vendor", Some(&include_multi)));
+        assert!(!should_traverse_directory("node_modules", Some(&include_multi)));
     }
 
     #[test]
@@ -404,7 +428,7 @@ mod tests {
             Ok(())
         };
 
-        traverse_project_directories(temp_path, 2, 0, &mut callback).unwrap();
+        traverse_project_directories(temp_path, 2, 0, None, &mut callback).unwrap();
 
         assert!(visited.contains(&temp_path.to_path_buf()));
         assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
@@ -425,12 +449,21 @@ mod tests {
     }
 
     fn traverse_and_collect(root_path: &Path, max_depth: usize) -> Vec<PathBuf> {
+        traverse_and_collect_with_include(root_path, max_depth, None)
+    }
+
+    fn traverse_and_collect_with_include(
+        root_path: &Path,
+        max_depth: usize,
+        include_dirs: Option<&[String]>,
+    ) -> Vec<PathBuf> {
         let mut visited = Vec::new();
         let mut callback = |path: &Path| -> Result<()> {
             visited.push(path.to_path_buf());
             Ok(())
         };
-        traverse_project_directories(root_path, max_depth, 0, &mut callback).unwrap();
+        traverse_project_directories(root_path, max_depth, 0, include_dirs, &mut callback)
+            .unwrap();
         visited
     }
 
@@ -470,6 +503,38 @@ mod tests {
         assert!(visited.iter().any(|p| p.file_name().unwrap() == "unit"));
         assert!(!visited.iter().any(|p| p.file_name().unwrap() == "deep"));
         assert!(!visited.iter().any(|p| p.file_name().unwrap() == "helpers"));
+    }
+
+    #[test]
+    fn test_traverse_with_include_dirs_discovers_excluded_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::create_dir_all(temp_path.join("packages/my-app/ai-rules")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+        fs::create_dir_all(temp_path.join("node_modules")).unwrap();
+
+        // Without include_dirs, packages is excluded
+        let visited = traverse_and_collect(temp_path, 3);
+        assert!(!visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "packages"));
+
+        // With include_dirs containing "packages", it is traversed
+        let include = vec!["packages".to_string()];
+        let visited = traverse_and_collect_with_include(temp_path, 3, Some(&include));
+        assert!(visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "packages"));
+        assert!(visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "my-app"));
+        // node_modules should still be excluded
+        assert!(!visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "node_modules"));
+        // src should still be included
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
     }
 
     #[test]

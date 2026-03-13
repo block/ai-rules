@@ -12,6 +12,7 @@ fn test_generate_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -19,6 +20,7 @@ fn test_generate_args_with_config_cli_priority() {
         gitignore: true,
         no_gitignore: false,
         nested_depth: Some(2),
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -37,6 +39,7 @@ fn test_generate_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -44,6 +47,7 @@ fn test_generate_args_with_config_uses_config_when_cli_missing() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -60,6 +64,7 @@ fn test_generate_args_with_config_defaults() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(None);
@@ -78,6 +83,7 @@ fn test_generate_args_with_config_partial_config() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -85,6 +91,7 @@ fn test_generate_args_with_config_partial_config() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -103,18 +110,26 @@ fn test_nested_depth_args_with_config() {
         no_gitignore: None,
         nested_depth: Some(4),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args_with_cli = NestedDepthArgs {
         nested_depth: Some(1),
+        include_dirs: None,
     };
-    assert_eq!(args_with_cli.with_config(Some(&config)), 1);
+    assert_eq!(args_with_cli.with_config(Some(&config)).0, 1);
 
-    let args_without_cli = NestedDepthArgs { nested_depth: None };
-    assert_eq!(args_without_cli.with_config(Some(&config)), 4);
+    let args_without_cli = NestedDepthArgs {
+        nested_depth: None,
+        include_dirs: None,
+    };
+    assert_eq!(args_without_cli.with_config(Some(&config)).0, 4);
 
-    let args_no_config = NestedDepthArgs { nested_depth: None };
-    assert_eq!(args_no_config.with_config(None), 0);
+    let args_no_config = NestedDepthArgs {
+        nested_depth: None,
+        include_dirs: None,
+    };
+    assert_eq!(args_no_config.with_config(None).0, 0);
 }
 
 #[test]
@@ -126,13 +141,15 @@ fn test_nested_depth_explicit_zero_overrides_config() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = NestedDepthArgs {
         nested_depth: Some(0),
+        include_dirs: None,
     };
 
-    assert_eq!(args.with_config(Some(&config)), 0);
+    assert_eq!(args.with_config(Some(&config)).0, 0);
 }
 
 #[test]
@@ -144,12 +161,14 @@ fn test_status_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = StatusArgs {
         agents: Some(vec!["claude".to_string()]),
         nested_depth_args: NestedDepthArgs {
             nested_depth: Some(2),
+            include_dirs: None,
         },
     };
 
@@ -168,11 +187,15 @@ fn test_status_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = StatusArgs {
         agents: None,
-        nested_depth_args: NestedDepthArgs { nested_depth: None },
+        nested_depth_args: NestedDepthArgs {
+            nested_depth: None,
+            include_dirs: None,
+        },
     };
 
     let resolved = args.with_config(Some(&config));
@@ -185,7 +208,10 @@ fn test_status_args_with_config_uses_config_when_cli_missing() {
 fn test_status_args_with_config_defaults() {
     let args = StatusArgs {
         agents: None,
-        nested_depth_args: NestedDepthArgs { nested_depth: None },
+        nested_depth_args: NestedDepthArgs {
+            nested_depth: None,
+            include_dirs: None,
+        },
     };
 
     let resolved = args.with_config(None);
@@ -203,6 +229,7 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
         no_gitignore: Some(true),
         nested_depth: None,
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -210,6 +237,7 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -226,6 +254,7 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -233,6 +262,7 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
         gitignore: false,
         no_gitignore: true,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -249,6 +279,7 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
+        include_dirs: None,
     };
 
     let args = GenerateArgs {
@@ -256,6 +287,7 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
         gitignore: true,
         no_gitignore: true,
         nested_depth: None,
+        include_dirs: None,
     };
 
     let resolved = args.with_config(Some(&config));

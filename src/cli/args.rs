@@ -67,6 +67,12 @@ pub struct GenerateArgs {
         help = "Maximum nested directory depth to traverse (0 = current directory only)"
     )]
     pub nested_depth: Option<usize>,
+    #[arg(
+        long,
+        value_delimiter = ',',
+        help = "Comma-separated list of excluded directories to include back (e.g. packages,vendor)"
+    )]
+    pub include_dirs: Option<Vec<String>>,
 }
 
 #[derive(Args)]
@@ -76,6 +82,12 @@ pub struct NestedDepthArgs {
         help = "Maximum nested directory depth to traverse (0 = current directory only)"
     )]
     pub nested_depth: Option<usize>,
+    #[arg(
+        long,
+        value_delimiter = ',',
+        help = "Comma-separated list of excluded directories to include back (e.g. packages,vendor)"
+    )]
+    pub include_dirs: Option<Vec<String>>,
 }
 
 #[derive(Args)]
@@ -119,6 +131,7 @@ pub struct ResolvedGenerateArgs {
     pub command_agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
+    pub include_dirs: Option<Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -126,4 +139,5 @@ pub struct ResolvedStatusArgs {
     pub agents: Option<Vec<String>>,
     pub command_agents: Option<Vec<String>>,
     pub nested_depth: usize,
+    pub include_dirs: Option<Vec<String>>,
 }

@@ -29,7 +29,7 @@ pub fn run_generate(
 
     let mut generation_result = GenerationResult::default();
 
-    traverse_project_directories(current_dir, args.nested_depth, 0, &mut |dir| {
+    traverse_project_directories(current_dir, args.nested_depth, 0, args.include_dirs.as_deref(), &mut |dir| {
         generate_files(
             dir,
             &agents,
@@ -156,6 +156,7 @@ mod tests {
         command_agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
+        include_dirs: None,
     };
 
     const TEST_RULE_CONTENT: &str = r#"---
@@ -257,6 +258,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -280,6 +282,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -390,6 +393,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: 0,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -432,6 +436,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -672,6 +677,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         run_generate(temp_dir.path(), args.clone(), true).unwrap();
 
@@ -714,6 +720,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -750,6 +757,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -775,6 +783,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -802,6 +811,7 @@ Optional content"#,
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -841,6 +851,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -877,6 +888,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -911,6 +923,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -935,6 +948,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            include_dirs: None,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());

@@ -4,13 +4,18 @@ use crate::utils::file_utils;
 use anyhow::Result;
 use std::path::Path;
 
-pub fn run_clean(current_dir: &Path, nested_depth: usize, use_claude_skills: bool) -> Result<()> {
+pub fn run_clean(
+    current_dir: &Path,
+    nested_depth: usize,
+    include_dirs: Option<&[String]>,
+    use_claude_skills: bool,
+) -> Result<()> {
     println!("📋 Cleaning files for all agents, nested_depth: {nested_depth}");
     let registry = AgentToolRegistry::new(use_claude_skills);
 
     let agents: Vec<String> = registry.get_all_tool_names();
 
-    file_utils::traverse_project_directories(current_dir, nested_depth, 0, &mut |dir| {
+    file_utils::traverse_project_directories(current_dir, nested_depth, 0, include_dirs, &mut |dir| {
         operations::clean_generated_files(dir, &agents, &registry)
     })?;
 
@@ -45,7 +50,7 @@ mod tests {
         create_file(project_path, "ai-rules/test.md", "Original rule");
         create_file(project_path, "src/main.ts", "console.log('test');");
 
-        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(result.is_ok());
 
         assert_file_not_exists(project_path, "CLAUDE.md");
@@ -86,7 +91,7 @@ mod tests {
         );
         create_file(project_path, "nested/deep/subproject2/src/code.ts", "code");
 
-        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(result.is_ok());
 
         assert_file_not_exists(project_path, "subproject1/CLAUDE.md");
@@ -118,7 +123,7 @@ mod tests {
 
         create_file(project_path, "src/main.rs", "fn main() {}");
 
-        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(result.is_ok());
 
         assert_file_not_exists(project_path, "CLAUDE.md");
@@ -161,6 +166,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: 2,
+                include_dirs: None,
             },
             false,
         );
@@ -170,7 +176,7 @@ Test rule content"#;
         assert_file_exists(project_path, "level1/CLAUDE.md");
         assert_file_exists(project_path, "level1/level2/CLAUDE.md");
 
-        let clean_result = run_clean(project_path, 0, false);
+        let clean_result = run_clean(project_path, 0, None, false);
         assert!(clean_result.is_ok());
 
         assert_file_not_exists(project_path, "CLAUDE.md");
@@ -211,6 +217,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -228,7 +235,7 @@ Test rule content"#;
             assert_file_exists(project_path, file);
         }
 
-        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(clean_result.is_ok());
 
         for file in &expected_files {
@@ -271,7 +278,7 @@ Test rule content"#;
             "old kilocode content",
         );
 
-        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(clean_result.is_ok());
 
         // Legacy directories should be cleaned up
@@ -294,7 +301,7 @@ Test rule content"#;
         create_file(project_path, ".roo/rules/my-custom-rule.md", "user file");
         create_file(project_path, ".roo/custom-config.txt", "user config");
 
-        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(clean_result.is_ok());
 
         // Generated file should be removed by legacy cleaner
@@ -327,6 +334,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -341,7 +349,7 @@ Test rule content"#;
         assert!(symlink_path.is_symlink());
 
         // Clean
-        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(clean_result.is_ok());
 
         // Verify skill symlink was removed
@@ -374,6 +382,7 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                include_dirs: None,
             },
             false,
         );
@@ -385,7 +394,7 @@ Test rule content"#;
         std::fs::write(user_skill_dir.join("SKILL.md"), "user skill content").unwrap();
 
         // Clean
-        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, false);
+        let clean_result = run_clean(project_path, CLEAN_NESTED_DEPTH, None, false);
         assert!(clean_result.is_ok());
 
         // Generated symlink should be removed

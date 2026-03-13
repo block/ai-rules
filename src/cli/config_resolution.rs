@@ -21,11 +21,19 @@ fn resolve_command_agents(config: Option<&config::Config>) -> Option<Vec<String>
     config?.command_agents.clone()
 }
 
+fn resolve_include_dirs(
+    include_dirs: Option<Vec<String>>,
+    config: Option<&config::Config>,
+) -> Option<Vec<String>> {
+    include_dirs.or_else(|| config?.include_dirs.clone())
+}
+
 impl GenerateArgs {
     pub fn with_config(self, config: Option<&config::Config>) -> ResolvedGenerateArgs {
         let agents = resolve_agents(self.agents, config);
         let command_agents = resolve_command_agents(config);
         let nested_depth = resolve_nested_depth(self.nested_depth, config);
+        let include_dirs = resolve_include_dirs(self.include_dirs, config);
 
         // Handle gitignore resolution with backward compatibility
         // Priority: CLI flags > Config file > Default (false)
@@ -56,6 +64,7 @@ impl GenerateArgs {
             command_agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
+            include_dirs,
         }
     }
 }
@@ -64,18 +73,20 @@ impl StatusArgs {
     pub fn with_config(self, config: Option<&config::Config>) -> ResolvedStatusArgs {
         let agents = resolve_agents(self.agents, config);
         let command_agents = resolve_command_agents(config);
-        let nested_depth = self.nested_depth_args.with_config(config);
+        let (nested_depth, include_dirs) = self.nested_depth_args.with_config(config);
         ResolvedStatusArgs {
             agents,
             command_agents,
             nested_depth,
+            include_dirs,
         }
     }
 }
 
 impl NestedDepthArgs {
-    pub fn with_config(self, config: Option<&config::Config>) -> usize {
+    pub fn with_config(self, config: Option<&config::Config>) -> (usize, Option<Vec<String>>) {
         let nested_depth = resolve_nested_depth(self.nested_depth, config);
-        nested_depth.unwrap_or(0)
+        let include_dirs = resolve_include_dirs(self.include_dirs, config);
+        (nested_depth.unwrap_or(0), include_dirs)
     }
 }
