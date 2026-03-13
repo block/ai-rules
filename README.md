@@ -69,6 +69,7 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
 ai-rules generate --agents claude,cursor    # Generate for specific agents
 ai-rules generate --nested-depth 2          # Process subdirectories
 ai-rules generate --gitignore               # Add generated files to .gitignore
+ai-rules generate --include-dirs packages   # Include excluded dirs in traversal
 ```
 
 ## Configuration
@@ -79,6 +80,7 @@ Create `ai-rules/ai-rules-config.yaml` to set defaults:
 agents: [claude, cursor, cline]
 nested_depth: 2
 gitignore: true
+include_dirs: [packages]  # Override excluded dirs for monorepo traversal
 ```
 
 See [Configuration Guide](docs/configuration.md) for all options.
