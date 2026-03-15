@@ -9,8 +9,9 @@ pub fn run_clean(current_dir: &Path, nested_depth: usize, use_claude_skills: boo
     let registry = AgentToolRegistry::new(use_claude_skills);
 
     let agents: Vec<String> = registry.get_all_tool_names();
+    let filter = file_utils::DirectoryFilter::from_project_root(current_dir);
 
-    file_utils::traverse_project_directories(current_dir, nested_depth, 0, &mut |dir| {
+    file_utils::traverse_project_directories(current_dir, nested_depth, 0, &filter, &mut |dir| {
         operations::clean_generated_files(dir, &agents, &registry)
     })?;
 

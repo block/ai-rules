@@ -1,11 +1,66 @@
 use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR};
 use crate::operations::body_generator::inlined_agents_relative_path;
+use crate::utils::git_utils::find_git_root;
 use anyhow::Result;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 
 use std::collections::HashMap;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::{Path, PathBuf};
+
+pub enum DirectoryFilter {
+    Gitignore(Gitignore),
+    Hardcoded,
+}
+
+impl DirectoryFilter {
+    pub fn from_project_root(root: &Path) -> Self {
+        // Try .gitignore at the given root first
+        if let Some(filter) = Self::try_load_gitignore(root) {
+            return filter;
+        }
+
+        // Try .gitignore at the git root
+        if let Some(git_root) = find_git_root(root) {
+            if git_root != root {
+                if let Some(filter) = Self::try_load_gitignore(&git_root) {
+                    return filter;
+                }
+            }
+        }
+
+        DirectoryFilter::Hardcoded
+    }
+
+    fn try_load_gitignore(root: &Path) -> Option<DirectoryFilter> {
+        let gitignore_path = root.join(".gitignore");
+        if !gitignore_path.exists() {
+            return None;
+        }
+
+        let mut builder = GitignoreBuilder::new(root);
+        builder.add(&gitignore_path);
+        match builder.build() {
+            Ok(gitignore) => Some(DirectoryFilter::Gitignore(gitignore)),
+            Err(_) => None,
+        }
+    }
+
+    pub fn should_traverse(&self, dir_path: &Path, dir_name: &str) -> bool {
+        // Always exclude hidden directories and ai-rules directory
+        if dir_name.starts_with('.') || dir_name == AI_RULE_SOURCE_DIR {
+            return false;
+        }
+
+        match self {
+            DirectoryFilter::Gitignore(gitignore) => {
+                !gitignore.matched(dir_path, true).is_ignore()
+            }
+            DirectoryFilter::Hardcoded => should_traverse_directory(dir_name),
+        }
+    }
+}
 
 /// Ensures a string ends with a newline character.
 /// This is a helper to maintain POSIX compliance for generated files.
@@ -159,6 +214,7 @@ pub fn traverse_project_directories<F>(
     current_dir: &Path,
     max_depth: usize,
     current_depth: usize,
+    filter: &DirectoryFilter,
     callback: &mut F,
 ) -> Result<()>
 where
@@ -181,7 +237,7 @@ where
                 .and_then(|name| name.to_str())
                 .unwrap_or("");
 
-            if should_traverse_directory(dir_name) {
+            if filter.should_traverse(&path, dir_name) {
                 dirs.push(path);
             }
         }
@@ -191,7 +247,7 @@ where
     dirs.sort();
 
     for dir in dirs {
-        traverse_project_directories(&dir, max_depth, current_depth + 1, callback)?;
+        traverse_project_directories(&dir, max_depth, current_depth + 1, filter, callback)?;
     }
 
     Ok(())
@@ -404,7 +460,8 @@ mod tests {
             Ok(())
         };
 
-        traverse_project_directories(temp_path, 2, 0, &mut callback).unwrap();
+        traverse_project_directories(temp_path, 2, 0, &DirectoryFilter::Hardcoded, &mut callback)
+            .unwrap();
 
         assert!(visited.contains(&temp_path.to_path_buf()));
         assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
@@ -425,12 +482,20 @@ mod tests {
     }
 
     fn traverse_and_collect(root_path: &Path, max_depth: usize) -> Vec<PathBuf> {
+        traverse_and_collect_with_filter(root_path, max_depth, &DirectoryFilter::Hardcoded)
+    }
+
+    fn traverse_and_collect_with_filter(
+        root_path: &Path,
+        max_depth: usize,
+        filter: &DirectoryFilter,
+    ) -> Vec<PathBuf> {
         let mut visited = Vec::new();
         let mut callback = |path: &Path| -> Result<()> {
             visited.push(path.to_path_buf());
             Ok(())
         };
-        traverse_project_directories(root_path, max_depth, 0, &mut callback).unwrap();
+        traverse_project_directories(root_path, max_depth, 0, filter, &mut callback).unwrap();
         visited
     }
 
@@ -622,5 +687,105 @@ mod tests {
 
         let result = find_files_by_extension(temp_path, "md");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_gitignore_filter_excludes_ignored_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+        fs::create_dir_all(temp_path.join("target")).unwrap();
+        fs::create_dir_all(temp_path.join("tests")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "tests"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "target"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_always_excludes_hidden() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore that does NOT mention .git
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join(".git")).unwrap();
+        fs::create_dir_all(temp_path.join(".hidden")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == ".git"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == ".hidden"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_always_excludes_ai_rules() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore that does NOT mention ai-rules
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join("ai-rules")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(!visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "ai-rules"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_allows_non_ignored() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore only ignores "dist/"
+        fs::write(temp_path.join(".gitignore"), "dist/\n").unwrap();
+        // "node_modules" is in the hardcoded list but NOT in .gitignore
+        fs::create_dir_all(temp_path.join("node_modules")).unwrap();
+        fs::create_dir_all(temp_path.join("vendor")).unwrap();
+        fs::create_dir_all(temp_path.join("dist")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        // node_modules and vendor should be traversed (not in .gitignore)
+        assert!(visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "node_modules"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "vendor"));
+        // dist should be excluded (in .gitignore)
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "dist"));
+    }
+
+    #[test]
+    fn test_fallback_to_hardcoded_when_no_gitignore() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // No .gitignore file
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+        fs::create_dir_all(temp_path.join("target")).unwrap();
+        fs::create_dir_all(temp_path.join("node_modules")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "target"));
+        assert!(!visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "node_modules"));
     }
 }

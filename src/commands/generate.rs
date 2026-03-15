@@ -2,7 +2,7 @@ use crate::agents::AgentToolRegistry;
 use crate::cli::ResolvedGenerateArgs;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::operations::{self, GenerationResult};
-use crate::utils::file_utils::{traverse_project_directories, write_directory_files};
+use crate::utils::file_utils::{traverse_project_directories, write_directory_files, DirectoryFilter};
 use crate::utils::print_utils::print_success;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -28,8 +28,9 @@ pub fn run_generate(
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
 
     let mut generation_result = GenerationResult::default();
+    let filter = DirectoryFilter::from_project_root(current_dir);
 
-    traverse_project_directories(current_dir, args.nested_depth, 0, &mut |dir| {
+    traverse_project_directories(current_dir, args.nested_depth, 0, &filter, &mut |dir| {
         generate_files(
             dir,
             &agents,
