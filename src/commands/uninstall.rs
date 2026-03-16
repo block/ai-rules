@@ -5,6 +5,18 @@ use std::fs;
 use std::path::Path;
 
 pub fn run_uninstall(current_dir: &Path, package_name: &str) -> Result<()> {
+    // Validate package name to prevent path traversal
+    if package_name.contains('/')
+        || package_name.contains('\\')
+        || package_name == ".."
+        || package_name == "."
+    {
+        bail!(
+            "Invalid package name '{}': must not contain path separators or dot-components",
+            package_name
+        );
+    }
+
     let packages_dir = get_packages_dir(current_dir);
     let target_pkg_dir = packages_dir.join(package_name);
 
@@ -71,6 +83,27 @@ mod tests {
         assert_file_not_exists(temp_dir.path(), "ai-rules/packages/my-pkg");
         // Source should still exist
         assert!(source.exists());
+    }
+
+    #[test]
+    fn test_uninstall_rejects_path_traversal() {
+        let temp_dir = TempDir::new().unwrap();
+
+        for bad_name in &["../outside", "foo/bar", "..\\outside", "..", "."] {
+            let result = run_uninstall(temp_dir.path(), bad_name);
+            assert!(
+                result.is_err(),
+                "Expected error for name '{}' but got Ok",
+                bad_name
+            );
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("Invalid package name"),
+                "Expected 'Invalid package name' error for '{}', got: {}",
+                bad_name,
+                err
+            );
+        }
     }
 
     #[test]

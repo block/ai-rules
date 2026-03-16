@@ -32,6 +32,18 @@ pub fn run_install(current_dir: &Path, args: InstallArgs) -> Result<()> {
             .to_string()
     });
 
+    // Validate package name to prevent path traversal
+    if package_name.contains('/')
+        || package_name.contains('\\')
+        || package_name == ".."
+        || package_name == "."
+    {
+        bail!(
+            "Invalid package name '{}': must not contain path separators or dot-components",
+            package_name
+        );
+    }
+
     let packages_dir = get_packages_dir(current_dir);
     let target_pkg_dir = packages_dir.join(&package_name);
 
@@ -466,6 +478,44 @@ mod tests {
         // Command symlink should be created
         let symlink_path = target.join(".claude/commands/ai-rules/review.md");
         assert!(symlink_path.is_symlink(), "Command symlink should exist");
+    }
+
+    #[test]
+    fn test_install_rejects_path_traversal_in_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let target = temp_dir.path().join("target");
+        fs::create_dir_all(&target).unwrap();
+
+        let source = create_package_source(temp_dir.path(), "my-pkg");
+        create_file(
+            &source,
+            "ai-rules/rule1.md",
+            "---\ndescription: Rule\nalwaysApply: true\n---\nContent",
+        );
+
+        for bad_name in &["../outside", "foo/bar", "..\\outside", "..", "."] {
+            let args = InstallArgs {
+                path: source.to_string_lossy().to_string(),
+                agents: Some(vec!["claude".to_string()]),
+                name: Some(bad_name.to_string()),
+                link: false,
+                force: false,
+            };
+
+            let result = run_install(&target, args);
+            assert!(
+                result.is_err(),
+                "Expected error for name '{}' but got Ok",
+                bad_name
+            );
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("Invalid package name"),
+                "Expected 'Invalid package name' error for '{}', got: {}",
+                bad_name,
+                err
+            );
+        }
     }
 
     #[test]
