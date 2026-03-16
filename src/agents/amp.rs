@@ -43,6 +43,14 @@ impl AgentRuleGenerator for AmpGenerator {
         check_in_sync(source_files, current_dir, AGENTS_MD_FILENAME)
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".agents").is_dir()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(AGENTS_MD_FILENAME))
+    }
+
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
         let output_file = current_dir.join(AGENTS_MD_FILENAME);
         check_agents_md_symlink(current_dir, &output_file)

@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 pub struct SingleFileBasedGenerator {
     name: String,
     output_filename: String,
+    detect_markers: Vec<String>,
 }
 
 impl SingleFileBasedGenerator {
@@ -20,13 +21,29 @@ impl SingleFileBasedGenerator {
         Self {
             name: name.to_string(),
             output_filename: output_filename.to_string(),
+            detect_markers: Vec::new(),
         }
+    }
+
+    pub fn with_detect_markers(mut self, markers: Vec<&str>) -> Self {
+        self.detect_markers = markers.into_iter().map(String::from).collect();
+        self
     }
 }
 
 impl AgentRuleGenerator for SingleFileBasedGenerator {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn detect(&self, current_dir: &Path) -> bool {
+        self.detect_markers
+            .iter()
+            .any(|marker| current_dir.join(marker).exists())
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(&self.output_filename))
     }
 
     fn clean(&self, current_dir: &Path) -> Result<()> {

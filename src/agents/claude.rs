@@ -103,6 +103,14 @@ impl AgentRuleGenerator for ClaudeGenerator {
         }
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".claude").is_dir() || current_dir.join("CLAUDE.md").exists()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(&self.output_filename))
+    }
+
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
         let output_file = current_dir.join(&self.output_filename);
         check_agents_md_symlink(current_dir, &output_file)

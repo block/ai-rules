@@ -59,6 +59,8 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
 |---------|-------------|
 | `ai-rules init` | Initialize AI rules in the current directory |
 | `ai-rules generate` | Generate rules for AI coding agents |
+| `ai-rules install <path>` | Install an external AI rules package |
+| `ai-rules uninstall <name>` | Remove an installed package |
 | `ai-rules status` | Show sync status of AI rules |
 | `ai-rules clean` | Remove all generated files |
 | `ai-rules list-agents` | List all supported agents |
@@ -70,6 +72,21 @@ ai-rules generate --agents claude,cursor    # Generate for specific agents
 ai-rules generate --nested-depth 2          # Process subdirectories
 ai-rules generate --gitignore               # Add generated files to .gitignore
 ```
+
+### Installing Packages
+
+Install external rule/skill packages into your project without requiring full ai-rules adoption:
+
+```bash
+ai-rules install /path/to/package           # Copy package into ai-rules/packages/
+ai-rules install /path/to/package --link    # Symlink instead (for development)
+ai-rules install /path/to/package --agents claude,cursor  # Specific agents
+ai-rules install /path/to/package --name my-pkg           # Custom package name
+ai-rules install /path/to/package --force   # Reinstall existing package
+ai-rules uninstall my-pkg                   # Remove a package
+```
+
+Install copies (or symlinks) the package's `ai-rules/` content into `ai-rules/packages/<name>/` and runs generate in a no-clobber mode that won't overwrite existing agent config files (e.g., your `CLAUDE.md` or `.cursor/rules/`). Agents are auto-detected from your project if `--agents` is not specified.
 
 ## Configuration
 

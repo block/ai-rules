@@ -38,6 +38,18 @@ pub trait AgentRuleGenerator {
         Ok(true)
     }
 
+    /// Detects whether this agent appears to be in use in the given directory.
+    /// Used by the install command to auto-detect which agents to generate for.
+    fn detect(&self, _current_dir: &Path) -> bool {
+        false
+    }
+
+    /// Returns the primary output file path relative to the project root.
+    /// Used by no-clobber mode to check if the file should be skipped.
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        None
+    }
+
     fn mcp_generator(&self) -> Option<Box<dyn McpGeneratorTrait>> {
         None
     }

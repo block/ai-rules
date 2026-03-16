@@ -28,12 +28,48 @@ pub enum Commands {
     Init(InitArgs),
     /// Generate AI rules for tools
     Generate(GenerateArgs),
+    /// Install an external ai-rules package into this project
+    Install(InstallArgs),
+    /// Uninstall a previously installed ai-rules package
+    Uninstall(UninstallArgs),
     /// Show status of AI rules (i.e. if they are in sync)
     Status(StatusArgs),
     /// Clean up generated files
     Clean(CleanArgs),
     /// List all supported coding agents
     ListAgents,
+}
+
+#[derive(Args, Clone)]
+#[command(after_help = "Examples:
+  ai-rules install /path/to/package           # Install package for auto-detected agents
+  ai-rules install /path/to/package --agents claude,cursor  # Install for specific agents
+  ai-rules install /path/to/package --link     # Symlink instead of copy
+  ai-rules install /path/to/package --name my-rules  # Custom package name")]
+pub struct InstallArgs {
+    /// Path to the package to install (must contain an ai-rules/ directory)
+    pub path: String,
+    #[arg(
+        long,
+        value_delimiter = ',',
+        help = "Comma-separated list of agents to install for (auto-detected if not specified)"
+    )]
+    pub agents: Option<Vec<String>>,
+    #[arg(long, help = "Custom name for the installed package")]
+    pub name: Option<String>,
+    #[arg(
+        long,
+        help = "Symlink instead of copying (changes flow through from source)"
+    )]
+    pub link: bool,
+    #[arg(long, help = "Force reinstall if package already exists")]
+    pub force: bool,
+}
+
+#[derive(Args)]
+pub struct UninstallArgs {
+    /// Name of the package to uninstall
+    pub name: String,
 }
 
 #[derive(Args)]

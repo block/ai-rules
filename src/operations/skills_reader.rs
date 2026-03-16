@@ -13,19 +13,15 @@ pub struct SkillFolder {
     pub full_path: PathBuf,
 }
 
-/// Finds all valid skill folders in ai-rules/skills/ directory
-#[allow(dead_code)]
-pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
-    let skills_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(SKILLS_DIR);
-
-    // If the skills directory doesn't exist, return empty list
+/// Finds all valid skill folders in a single skills directory
+fn find_skill_folders_in_dir(skills_dir: &Path, relative_base: &Path) -> Result<Vec<SkillFolder>> {
     if !skills_dir.exists() || !skills_dir.is_dir() {
         return Ok(Vec::new());
     }
 
     let mut skill_folders = Vec::new();
 
-    for entry in fs::read_dir(&skills_dir)
+    for entry in fs::read_dir(skills_dir)
         .with_context(|| format!("Failed to read skills directory: {}", skills_dir.display()))?
     {
         let entry = entry?;
@@ -56,9 +52,7 @@ pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
 
         // Get the folder name
         if let Some(folder_name) = path.file_name().and_then(|n| n.to_str()) {
-            let relative_path = PathBuf::from(AI_RULE_SOURCE_DIR)
-                .join(SKILLS_DIR)
-                .join(folder_name);
+            let relative_path = relative_base.join(SKILLS_DIR).join(folder_name);
 
             skill_folders.push(SkillFolder {
                 name: folder_name.to_string(),
@@ -69,6 +63,42 @@ pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
     }
 
     Ok(skill_folders)
+}
+
+/// Finds all valid skill folders in ai-rules/skills/ and ai-rules/packages/*/skills/
+#[allow(dead_code)]
+pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
+    use crate::constants::PACKAGES_DIR;
+
+    let ai_rules_dir = current_dir.join(AI_RULE_SOURCE_DIR);
+    let skills_dir = ai_rules_dir.join(SKILLS_DIR);
+    let relative_base = PathBuf::from(AI_RULE_SOURCE_DIR);
+
+    let mut all_skills = find_skill_folders_in_dir(&skills_dir, &relative_base)?;
+
+    // Also scan package directories
+    let packages_dir = ai_rules_dir.join(PACKAGES_DIR);
+    if packages_dir.exists() && packages_dir.is_dir() {
+        let mut pkg_entries: Vec<_> = fs::read_dir(&packages_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir() || e.path().is_symlink())
+            .collect();
+        pkg_entries.sort_by_key(|e| e.file_name());
+
+        for entry in pkg_entries {
+            let pkg_path = entry.path();
+            if let Some(pkg_name) = pkg_path.file_name().and_then(|n| n.to_str()) {
+                let pkg_skills_dir = pkg_path.join(SKILLS_DIR);
+                let pkg_relative_base = PathBuf::from(AI_RULE_SOURCE_DIR)
+                    .join(PACKAGES_DIR)
+                    .join(pkg_name);
+                let pkg_skills = find_skill_folders_in_dir(&pkg_skills_dir, &pkg_relative_base)?;
+                all_skills.extend(pkg_skills);
+            }
+        }
+    }
+
+    Ok(all_skills)
 }
 
 /// Creates symlinks for each skill folder in the target directory

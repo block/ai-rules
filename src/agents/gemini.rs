@@ -50,6 +50,14 @@ impl AgentRuleGenerator for GeminiGenerator {
         check_in_sync(source_files, current_dir, GEMINI_AGENT_FILE)
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".gemini").is_dir() || current_dir.join("GEMINI.md").exists()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(GEMINI_AGENT_FILE))
+    }
+
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
         let output_file = current_dir.join(GEMINI_AGENT_FILE);
         check_agents_md_symlink(current_dir, &output_file)

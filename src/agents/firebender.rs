@@ -97,6 +97,14 @@ impl AgentRuleGenerator for FirebenderGenerator {
         file_matches_expected(&firebender_file, &expected_content)
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".firebender").is_dir() || current_dir.join("firebender.json").exists()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(FIREBENDER_JSON))
+    }
+
     fn gitignore_patterns(&self) -> Vec<String> {
         vec![FIREBENDER_JSON.to_string()]
     }

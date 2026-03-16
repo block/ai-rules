@@ -1,4 +1,4 @@
-use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, MD_EXTENSION};
+use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, MD_EXTENSION, PACKAGES_DIR};
 use crate::models::SourceFile;
 use crate::utils::file_utils::find_files_by_extension;
 use anyhow::Result;
@@ -9,23 +9,57 @@ pub fn get_ai_rules_dir(current_dir: &Path) -> PathBuf {
     current_dir.join(AI_RULE_SOURCE_DIR)
 }
 
-fn get_md_files_in_ai_rules_dir(current_dir: &Path) -> Result<Vec<PathBuf>> {
-    let ai_rules_dir = get_ai_rules_dir(current_dir);
+pub fn get_packages_dir(current_dir: &Path) -> PathBuf {
+    get_ai_rules_dir(current_dir).join(PACKAGES_DIR)
+}
 
-    if !ai_rules_dir.exists() || !ai_rules_dir.is_dir() {
+fn get_md_files_in_dir(dir: &Path) -> Result<Vec<PathBuf>> {
+    if !dir.exists() || !dir.is_dir() {
         return Ok(Vec::new());
     }
 
-    find_files_by_extension(&ai_rules_dir, MD_EXTENSION)
+    find_files_by_extension(dir, MD_EXTENSION)
+}
+
+fn get_md_files_in_ai_rules_dir(current_dir: &Path) -> Result<Vec<PathBuf>> {
+    get_md_files_in_dir(&get_ai_rules_dir(current_dir))
+}
+
+/// Lists installed package directories under ai-rules/packages/
+pub fn list_packages(current_dir: &Path) -> Result<Vec<(String, PathBuf)>> {
+    let packages_dir = get_packages_dir(current_dir);
+    if !packages_dir.exists() || !packages_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut packages = Vec::new();
+    for entry in fs::read_dir(&packages_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() || path.is_symlink() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                packages.push((name.to_string(), path));
+            }
+        }
+    }
+    packages.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(packages)
 }
 
 pub fn find_source_files(current_dir: &Path) -> Result<Vec<SourceFile>> {
-    let source_files = get_md_files_in_ai_rules_dir(current_dir)?;
-    if source_files.is_empty() {
+    let mut all_md_files = get_md_files_in_ai_rules_dir(current_dir)?;
+
+    // Also scan package directories
+    for (_name, pkg_dir) in list_packages(current_dir)? {
+        let pkg_md_files = get_md_files_in_dir(&pkg_dir)?;
+        all_md_files.extend(pkg_md_files);
+    }
+
+    if all_md_files.is_empty() {
         return Ok(Vec::new());
     }
 
-    parse_source_files(source_files)
+    parse_source_files(all_md_files)
 }
 
 fn parse_source_files(original_source_files: Vec<PathBuf>) -> Result<Vec<SourceFile>> {

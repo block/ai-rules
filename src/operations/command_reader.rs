@@ -13,21 +13,22 @@ pub struct CommandFile {
     pub full_path: PathBuf,
 }
 
-/// Finds all command markdown files in ai-rules/commands/ directory
-pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
-    let commands_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(COMMANDS_DIR);
-
+/// Finds command markdown files in a single commands directory
+fn find_command_files_in_dir(
+    commands_dir: &Path,
+    relative_base: &Path,
+) -> Result<Vec<CommandFile>> {
     if !commands_dir.exists() || !commands_dir.is_dir() {
         return Ok(Vec::new());
     }
 
-    let command_paths = find_files_by_extension(&commands_dir, MD_EXTENSION)?;
+    let command_paths = find_files_by_extension(commands_dir, MD_EXTENSION)?;
 
     let mut command_files = Vec::new();
     for path in command_paths {
         if let Some(file_stem) = path.file_stem() {
             if let Some(name) = file_stem.to_str() {
-                let relative_path = PathBuf::from(AI_RULE_SOURCE_DIR)
+                let relative_path = relative_base
                     .join(COMMANDS_DIR)
                     .join(path.file_name().unwrap());
 
@@ -41,6 +42,43 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
     }
 
     Ok(command_files)
+}
+
+/// Finds all command markdown files in ai-rules/commands/ and ai-rules/packages/*/commands/
+pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
+    use crate::constants::PACKAGES_DIR;
+    use std::fs;
+
+    let ai_rules_dir = current_dir.join(AI_RULE_SOURCE_DIR);
+    let commands_dir = ai_rules_dir.join(COMMANDS_DIR);
+    let relative_base = PathBuf::from(AI_RULE_SOURCE_DIR);
+
+    let mut all_commands = find_command_files_in_dir(&commands_dir, &relative_base)?;
+
+    // Also scan package directories
+    let packages_dir = ai_rules_dir.join(PACKAGES_DIR);
+    if packages_dir.exists() && packages_dir.is_dir() {
+        let mut pkg_entries: Vec<_> = fs::read_dir(&packages_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir() || e.path().is_symlink())
+            .collect();
+        pkg_entries.sort_by_key(|e| e.file_name());
+
+        for entry in pkg_entries {
+            let pkg_path = entry.path();
+            if let Some(pkg_name) = pkg_path.file_name().and_then(|n| n.to_str()) {
+                let pkg_commands_dir = pkg_path.join(COMMANDS_DIR);
+                let pkg_relative_base = PathBuf::from(AI_RULE_SOURCE_DIR)
+                    .join(PACKAGES_DIR)
+                    .join(pkg_name);
+                let pkg_commands =
+                    find_command_files_in_dir(&pkg_commands_dir, &pkg_relative_base)?;
+                all_commands.extend(pkg_commands);
+            }
+        }
+    }
+
+    Ok(all_commands)
 }
 
 /// Creates individual symlinks for each command file in the target directory

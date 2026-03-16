@@ -88,6 +88,10 @@ impl AgentRuleGenerator for CursorGenerator {
         check_directory_exact_match(&cursor_rules_dir, &expected_files)
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".cursor").is_dir()
+    }
+
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
         let agents_md_path = current_dir.join(AGENTS_MD_FILENAME);
         check_agents_md_symlink(current_dir, &agents_md_path)

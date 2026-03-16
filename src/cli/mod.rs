@@ -6,7 +6,9 @@ mod tests;
 
 pub use args::*;
 
-use crate::commands::{run_clean, run_generate, run_init, run_list_agents, run_status};
+use crate::commands::{
+    run_clean, run_generate, run_init, run_install, run_list_agents, run_status, run_uninstall,
+};
 use crate::config;
 use clap::Parser;
 
@@ -35,6 +37,8 @@ pub fn run_cli() -> anyhow::Result<()> {
             let final_args = args.with_config(config.as_ref());
             run_generate(&current_dir, final_args, use_claude_skills)
         }
+        Some(Commands::Install(args)) => run_install(&current_dir, args),
+        Some(Commands::Uninstall(args)) => run_uninstall(&current_dir, &args.name),
         Some(Commands::Status(args)) => {
             let final_args = args.with_config(config.as_ref());
             run_status(&current_dir, final_args, use_claude_skills)

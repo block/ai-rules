@@ -36,6 +36,7 @@ pub fn run_generate(
             &command_agents,
             &registry,
             &mut generation_result,
+            false,
         )
     })?;
 
@@ -51,18 +52,52 @@ pub fn run_generate(
     Ok(())
 }
 
-fn generate_files(
+use crate::agents::rule_generator::AgentRuleGenerator;
+
+/// Checks if a file exists and is NOT managed by ai-rules (i.e., not a symlink).
+/// Returns true if the file should be skipped in no-clobber mode.
+fn should_skip_no_clobber(path: &Path, no_clobber: bool) -> bool {
+    no_clobber && path.exists() && !path.is_symlink()
+}
+
+/// Checks if an agent's primary output should be skipped in no-clobber mode.
+fn should_skip_agent_output(
+    tool: &dyn AgentRuleGenerator,
+    current_dir: &Path,
+    no_clobber: bool,
+) -> bool {
+    if !no_clobber {
+        return false;
+    }
+    if let Some(output_path) = tool.primary_output_path() {
+        let full_path = current_dir.join(output_path);
+        full_path.exists() && !full_path.is_symlink()
+    } else {
+        false
+    }
+}
+
+pub fn generate_files(
     current_dir: &Path,
     agents: &[String],
     command_agents: &[String],
     registry: &AgentToolRegistry,
     result: &mut GenerationResult,
+    no_clobber: bool,
 ) -> Result<()> {
-    operations::clean_generated_files(current_dir, agents, registry)?;
+    if no_clobber {
+        // In no-clobber mode, only clean files that are ai-rules-managed
+        clean_generated_files_safe(current_dir, agents, registry)?;
+    } else {
+        operations::clean_generated_files(current_dir, agents, registry)?;
+    }
 
     if detect_symlink_mode(current_dir) {
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
+                if should_skip_agent_output(tool, current_dir, no_clobber) {
+                    continue;
+                }
                 let created_symlinks = tool.generate_symlink(current_dir)?;
                 for symlink_path in created_symlinks {
                     result.add_file(agent, symlink_path);
@@ -82,6 +117,9 @@ fn generate_files(
 
             for agent in agents {
                 if let Some(tool) = registry.get_tool(agent) {
+                    if should_skip_agent_output(tool, current_dir, no_clobber) {
+                        continue;
+                    }
                     if tool.uses_inlined_symlink() {
                         let created_symlinks = tool.generate_inlined_symlink(current_dir)?;
                         for symlink_path in created_symlinks {
@@ -89,10 +127,12 @@ fn generate_files(
                         }
                     } else {
                         let agent_files = tool.generate_agent_contents(&source_files, current_dir);
-                        for file_path in agent_files.keys() {
-                            result.add_file(agent, file_path.clone());
+                        for (file_path, content) in agent_files {
+                            if !should_skip_no_clobber(&file_path, no_clobber) {
+                                result.add_file(agent, file_path.clone());
+                                content_files.insert(file_path, content);
+                            }
                         }
-                        content_files.extend(agent_files);
                     }
                 }
             }
@@ -106,10 +146,12 @@ fn generate_files(
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(mcp_gen) = tool.mcp_generator() {
                 let mcp_files = mcp_gen.generate_mcp(current_dir);
-                for path in mcp_files.keys() {
-                    result.add_file(agent, path.clone());
+                for (path, content) in mcp_files {
+                    if !should_skip_no_clobber(&path, no_clobber) {
+                        result.add_file(agent, path.clone());
+                        mcp_files_to_write.insert(path, content);
+                    }
                 }
-                mcp_files_to_write.extend(mcp_files);
             }
         }
     }
@@ -135,6 +177,38 @@ fn generate_files(
                 for symlink_path in skill_symlinks {
                     result.add_file(agent, symlink_path);
                 }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Clean only ai-rules-managed files (symlinks), preserving user files.
+/// Always cleans .generated-ai-rules/ since that's internal to ai-rules.
+fn clean_generated_files_safe(
+    current_dir: &Path,
+    agents: &[String],
+    registry: &AgentToolRegistry,
+) -> Result<()> {
+    use crate::operations::body_generator::generated_body_file_dir;
+
+    // Always safe to nuke the generated body dir
+    let generated_dir = generated_body_file_dir(current_dir);
+    if generated_dir.exists() {
+        std::fs::remove_dir_all(&generated_dir)?;
+    }
+
+    // For each agent, only clean files that are symlinks (ai-rules-managed)
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            // Clean skills (prefixed, safe to remove)
+            if let Some(skills_gen) = tool.skills_generator() {
+                skills_gen.clean_skills(current_dir)?;
+            }
+            // Clean commands (prefixed/subdir, safe to remove)
+            if let Some(cmd_gen) = tool.command_generator() {
+                cmd_gen.clean_commands(current_dir)?;
             }
         }
     }
@@ -473,6 +547,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            false,
         );
         assert!(result.is_ok());
 
@@ -518,6 +593,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            false,
         );
         assert!(result.is_ok());
 
@@ -548,6 +624,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            false,
         );
         assert!(result.is_ok());
 
@@ -579,6 +656,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            false,
         );
         assert!(result.is_ok());
 
@@ -613,6 +691,7 @@ Test rule content
             &agents,
             &registry,
             &mut generation_result,
+            false,
         );
         assert!(result1.is_ok());
 
@@ -635,6 +714,7 @@ New body content"#;
             &agents,
             &registry,
             &mut generation_result2,
+            false,
         );
         assert!(result2.is_ok());
 

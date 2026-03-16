@@ -36,6 +36,14 @@ impl AgentRuleGenerator for RooGenerator {
         self.inner.name()
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".roo").is_dir()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(AGENTS_MD_FILENAME))
+    }
+
     fn clean(&self, current_dir: &Path) -> Result<()> {
         self.inner.clean(current_dir)
     }

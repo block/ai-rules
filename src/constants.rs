@@ -26,6 +26,7 @@ pub const MCP_JSON: &str = "mcp.json";
 pub const CLAUDE_MCP_JSON: &str = ".mcp.json";
 pub const MCP_SERVERS_FIELD: &str = "mcpServers";
 
+pub const PACKAGES_DIR: &str = "packages";
 pub const COMMANDS_DIR: &str = "commands";
 pub const CLAUDE_COMMANDS_DIR: &str = ".claude/commands";
 pub const CLAUDE_COMMANDS_SUBDIR: &str = "ai-rules";

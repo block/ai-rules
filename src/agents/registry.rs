@@ -6,6 +6,7 @@ use crate::agents::{
 };
 use crate::constants::AGENTS_MD_FILENAME;
 use std::collections::HashMap;
+use std::path::Path;
 
 pub struct AgentToolRegistry {
     tools: HashMap<String, Box<dyn AgentRuleGenerator>>,
@@ -24,18 +25,28 @@ impl AgentToolRegistry {
 
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
             claude_generator,
-            Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
+            Box::new(
+                SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)
+                    .with_detect_markers(vec![".cline", ".clinerules"]),
+            ),
             Box::new(CursorGenerator),
             Box::new(FirebenderGenerator),
-            Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
+            Box::new(
+                SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)
+                    .with_detect_markers(vec![".goose"]),
+            ),
             Box::new(AmpGenerator),
             Box::new(CodexGenerator::new()),
-            Box::new(SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME)),
+            Box::new(
+                SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME).with_detect_markers(
+                    vec![".github/copilot-instructions.md", ".github/copilot"],
+                ),
+            ),
             Box::new(GeminiGenerator),
-            Box::new(SingleFileBasedGenerator::new(
-                "kilocode",
-                AGENTS_MD_FILENAME,
-            )),
+            Box::new(
+                SingleFileBasedGenerator::new("kilocode", AGENTS_MD_FILENAME)
+                    .with_detect_markers(vec![".kilocode"]),
+            ),
             Box::new(RooGenerator::new()),
         ];
 
@@ -53,5 +64,13 @@ impl AgentToolRegistry {
 
     pub fn get_all_tool_names(&self) -> Vec<String> {
         self.tools.keys().map(|s| s.to_string()).collect()
+    }
+
+    pub fn detect_agents(&self, current_dir: &Path) -> Vec<String> {
+        self.tools
+            .iter()
+            .filter(|(_, tool)| tool.detect(current_dir))
+            .map(|(name, _)| name.clone())
+            .collect()
     }
 }

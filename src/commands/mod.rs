@@ -1,14 +1,18 @@
 mod clean;
-mod generate;
+pub mod generate;
 mod init;
+mod install;
 mod list_agents;
 mod status;
+mod uninstall;
 
 pub use clean::run_clean;
 pub use generate::run_generate;
 pub use init::run_init;
+pub use install::run_install;
 pub use list_agents::run_list_agents;
 pub use status::run_status;
+pub use uninstall::run_uninstall;
 
 #[cfg(test)]
 mod tests {

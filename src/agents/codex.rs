@@ -59,6 +59,14 @@ impl AgentRuleGenerator for CodexGenerator {
         check_in_sync(source_files, current_dir, &self.output_filename)
     }
 
+    fn detect(&self, current_dir: &Path) -> bool {
+        current_dir.join(".codex").is_dir()
+    }
+
+    fn primary_output_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(&self.output_filename))
+    }
+
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
         let output_file = current_dir.join(&self.output_filename);
         check_agents_md_symlink(current_dir, &output_file)
