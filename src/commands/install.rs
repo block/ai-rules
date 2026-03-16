@@ -258,11 +258,18 @@ mod tests {
         let result = run_install(&target, args);
         assert!(result.is_ok());
 
-        // CLAUDE.md should still be the hand-written one
+        // CLAUDE.md should preserve hand-written content AND have reference appended
         let content = fs::read_to_string(target.join("CLAUDE.md")).unwrap();
-        assert_eq!(content, "My hand-written rules");
+        assert!(
+            content.contains("My hand-written rules"),
+            "Should preserve original content"
+        );
+        assert!(
+            content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md"),
+            "Should append reference"
+        );
 
-        // But body files should still be generated
+        // Body files should be generated
         assert_file_exists(
             &target,
             "ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md",

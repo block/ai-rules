@@ -53,6 +53,7 @@ pub fn run_generate(
 }
 
 use crate::agents::rule_generator::AgentRuleGenerator;
+use crate::constants::{AI_RULE_SOURCE_DIR, GENERATED_RULE_BODY_DIR};
 
 /// Checks if a file exists and is NOT managed by ai-rules (i.e., not a symlink).
 /// Returns true if the file should be skipped in no-clobber mode.
@@ -60,8 +61,8 @@ fn should_skip_no_clobber(path: &Path, no_clobber: bool) -> bool {
     no_clobber && path.exists() && !path.is_symlink()
 }
 
-/// Checks if an agent's primary output should be skipped in no-clobber mode.
-fn should_skip_agent_output(
+/// Checks if an agent's primary output is a user-managed file (exists and is not a symlink).
+fn is_user_managed_output(
     tool: &dyn AgentRuleGenerator,
     current_dir: &Path,
     no_clobber: bool,
@@ -75,6 +76,65 @@ fn should_skip_agent_output(
     } else {
         false
     }
+}
+
+fn generated_ref_prefix() -> String {
+    format!("@{}/{}/", AI_RULE_SOURCE_DIR, GENERATED_RULE_BODY_DIR)
+}
+
+/// Append missing `@` reference lines to an existing user-managed file,
+/// and remove stale references whose target body files no longer exist.
+fn reconcile_references(
+    file_path: &Path,
+    new_references: &str,
+    current_dir: &Path,
+) -> Result<bool> {
+    let existing_content = std::fs::read_to_string(file_path)?;
+    let ref_prefix = generated_ref_prefix();
+
+    // Collect the new reference lines (non-empty, trimmed)
+    let new_ref_lines: Vec<&str> = new_references
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+
+    // Remove stale ai-rules references (lines whose body file no longer exists)
+    let mut kept_lines: Vec<&str> = Vec::new();
+    for line in existing_content.lines() {
+        if line.starts_with(&ref_prefix) {
+            // It's an ai-rules reference — keep only if the target file still exists
+            let ref_path = line.trim_start_matches('@');
+            if current_dir.join(ref_path).exists() || new_ref_lines.contains(&line) {
+                kept_lines.push(line);
+            }
+        } else {
+            kept_lines.push(line);
+        }
+    }
+
+    // Find which new references are missing
+    let missing: Vec<&str> = new_ref_lines
+        .iter()
+        .filter(|line| !kept_lines.contains(line))
+        .copied()
+        .collect();
+
+    if missing.is_empty() && kept_lines.len() == existing_content.lines().count() {
+        return Ok(false); // Nothing changed
+    }
+
+    // Build the updated content
+    let mut updated = kept_lines.join("\n");
+    if !updated.ends_with('\n') && !updated.is_empty() {
+        updated.push('\n');
+    }
+    for line in &missing {
+        updated.push_str(line);
+        updated.push('\n');
+    }
+
+    std::fs::write(file_path, &updated)?;
+    Ok(true)
 }
 
 pub fn generate_files(
@@ -95,7 +155,8 @@ pub fn generate_files(
     if detect_symlink_mode(current_dir) {
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
-                if should_skip_agent_output(tool, current_dir, no_clobber) {
+                if is_user_managed_output(tool, current_dir, no_clobber) {
+                    // Can't append @ references in symlink mode (no source files with frontmatter)
                     continue;
                 }
                 let created_symlinks = tool.generate_symlink(current_dir)?;
@@ -112,12 +173,22 @@ pub fn generate_files(
             let body_files = operations::generate_body_contents(&source_files, current_dir);
             write_directory_files(&body_files)?;
 
+            // Generate the @ references for reconciliation
+            let references = operations::generate_all_rule_references(&source_files);
+
             // Process agents: symlink-based agents get symlinks, content-based agents get files
             let mut content_files: HashMap<PathBuf, String> = HashMap::new();
 
             for agent in agents {
                 if let Some(tool) = registry.get_tool(agent) {
-                    if should_skip_agent_output(tool, current_dir, no_clobber) {
+                    if is_user_managed_output(tool, current_dir, no_clobber) {
+                        // Append missing references to existing user file
+                        if let Some(output_path) = tool.primary_output_path() {
+                            let full_path = current_dir.join(output_path);
+                            if reconcile_references(&full_path, &references, current_dir)? {
+                                result.add_file(agent, full_path);
+                            }
+                        }
                         continue;
                     }
                     if tool.uses_inlined_symlink() {
@@ -1021,5 +1092,200 @@ Optional content"#,
 
         // Verify no skill symlinks created (skills directory shouldn't exist)
         assert_file_not_exists(temp_dir.path(), ".claude/skills/");
+    }
+
+    #[test]
+    fn test_no_clobber_appends_references_to_existing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let registry = AgentToolRegistry::new(false);
+
+        // Create a hand-written CLAUDE.md
+        create_file(temp_dir.path(), "CLAUDE.md", "My project rules\n");
+
+        // Create a rule in a package
+        create_file(
+            temp_dir.path(),
+            "ai-rules/packages/test-pkg/rule1.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let agents = vec!["claude".to_string()];
+        let mut generation_result = GenerationResult::default();
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+            true,
+        );
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(temp_dir.path().join("CLAUDE.md")).unwrap();
+        assert!(
+            content.contains("My project rules"),
+            "Should preserve original content"
+        );
+        assert!(
+            content.contains("@ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md"),
+            "Should append reference"
+        );
+    }
+
+    #[test]
+    fn test_no_clobber_does_not_duplicate_references() {
+        let temp_dir = TempDir::new().unwrap();
+        let registry = AgentToolRegistry::new(false);
+
+        // Create CLAUDE.md that already has the reference
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "My rules\n@ai-rules/.generated-ai-rules/ai-rules-generated-test.md\n",
+        );
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/packages/test-pkg/test.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let agents = vec!["claude".to_string()];
+        let mut generation_result = GenerationResult::default();
+        generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+            true,
+        )
+        .unwrap();
+
+        let content = std::fs::read_to_string(temp_dir.path().join("CLAUDE.md")).unwrap();
+        let count = content
+            .matches("@ai-rules/.generated-ai-rules/ai-rules-generated-test.md")
+            .count();
+        assert_eq!(count, 1, "Should not duplicate the reference");
+    }
+
+    #[test]
+    fn test_no_clobber_removes_stale_references() {
+        let temp_dir = TempDir::new().unwrap();
+        let registry = AgentToolRegistry::new(false);
+
+        // Create CLAUDE.md with a reference to a body file that won't exist
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "My rules\n@ai-rules/.generated-ai-rules/ai-rules-generated-old-rule.md\n",
+        );
+
+        // Create a different rule (not old-rule)
+        create_file(
+            temp_dir.path(),
+            "ai-rules/packages/test-pkg/new-rule.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let agents = vec!["claude".to_string()];
+        let mut generation_result = GenerationResult::default();
+        generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+            true,
+        )
+        .unwrap();
+
+        let content = std::fs::read_to_string(temp_dir.path().join("CLAUDE.md")).unwrap();
+        assert!(
+            !content.contains("ai-rules-generated-old-rule.md"),
+            "Should remove stale reference"
+        );
+        assert!(content.contains("My rules"), "Should preserve user content");
+    }
+
+    #[test]
+    fn test_no_clobber_appends_to_agents_md_for_codex() {
+        let temp_dir = TempDir::new().unwrap();
+        let registry = AgentToolRegistry::new(false);
+
+        // Create a hand-written AGENTS.md and .codex dir
+        create_file(
+            temp_dir.path(),
+            AGENTS_MD_FILENAME,
+            "Existing agent rules\n",
+        );
+        std::fs::create_dir_all(temp_dir.path().join(".codex")).unwrap();
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/packages/test-pkg/rule1.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let agents = vec!["codex".to_string()];
+        let mut generation_result = GenerationResult::default();
+        generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+            true,
+        )
+        .unwrap();
+
+        let content = std::fs::read_to_string(temp_dir.path().join(AGENTS_MD_FILENAME)).unwrap();
+        assert!(
+            content.contains("Existing agent rules"),
+            "Should preserve original content"
+        );
+        assert!(
+            content.contains("@ai-rules/.generated-ai-rules/"),
+            "Should append reference"
+        );
+    }
+
+    #[test]
+    fn test_no_clobber_skips_when_no_primary_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let registry = AgentToolRegistry::new(false);
+
+        // Create cursor rules that already exist
+        create_file(
+            temp_dir.path(),
+            ".cursor/rules/my-rule.mdc",
+            "---\ndescription: My rule\n---\nContent",
+        );
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/packages/test-pkg/rule1.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let agents = vec!["cursor".to_string()];
+        let mut generation_result = GenerationResult::default();
+        let result = generate_files(
+            temp_dir.path(),
+            &agents,
+            &agents,
+            &registry,
+            &mut generation_result,
+            true,
+        );
+        assert!(result.is_ok());
+
+        // Cursor should still generate its .mdc files (no primary_output_path)
+        assert_file_exists(
+            temp_dir.path(),
+            ".cursor/rules/ai-rules-generated-rule1.mdc",
+        );
+        // User's rule should be untouched
+        assert_file_exists(temp_dir.path(), ".cursor/rules/my-rule.mdc");
     }
 }
