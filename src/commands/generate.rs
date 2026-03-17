@@ -13,23 +13,31 @@ pub fn run_generate(
     args: ResolvedGenerateArgs,
     use_claude_skills: bool,
 ) -> Result<()> {
+    let nested_depth = if args.global { 0 } else { args.nested_depth };
+
     println!(
-        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}",
+        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}, global: {}",
         args.agents
             .as_ref()
             .map(|a| a.join(","))
             .unwrap_or_else(|| "all".to_string()),
-        args.nested_depth,
-        args.gitignore
+        nested_depth,
+        args.gitignore,
+        args.global
     );
-    let registry = AgentToolRegistry::new(use_claude_skills);
-    let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
 
+    let registry = if args.global {
+        AgentToolRegistry::new_global(use_claude_skills)
+    } else {
+        AgentToolRegistry::new(use_claude_skills)
+    };
+
+    let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
 
     let mut generation_result = GenerationResult::default();
 
-    traverse_project_directories(current_dir, args.nested_depth, 0, &mut |dir| {
+    traverse_project_directories(current_dir, nested_depth, 0, &mut |dir| {
         generate_files(
             dir,
             &agents,
@@ -41,10 +49,10 @@ pub fn run_generate(
 
     generation_result.display(current_dir);
 
-    if args.gitignore {
-        operations::update_project_gitignore(current_dir, &registry, args.nested_depth)?;
+    if args.gitignore && !args.global {
+        operations::update_project_gitignore(current_dir, &registry, nested_depth)?;
         print_success("Updated .gitignore with generated file patterns");
-    } else {
+    } else if !args.global {
         operations::remove_gitignore_section(current_dir, &registry)?;
     }
 
@@ -156,6 +164,7 @@ mod tests {
         command_agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
+        global: false,
     };
 
     const TEST_RULE_CONTENT: &str = r#"---
@@ -257,6 +266,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -280,6 +290,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -390,6 +401,7 @@ Test rule content
             command_agents: None,
             gitignore: true,
             nested_depth: 0,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -432,6 +444,7 @@ Test rule content
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -672,6 +685,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         run_generate(temp_dir.path(), args.clone(), true).unwrap();
 
@@ -714,6 +728,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -750,6 +765,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -775,6 +791,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -802,6 +819,7 @@ Optional content"#,
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -841,6 +859,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -877,6 +896,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -911,6 +931,7 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
@@ -935,11 +956,78 @@ Optional content"#,
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            global: false,
         };
         let result = run_generate(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         // Verify no skill symlinks created (skills directory shouldn't exist)
         assert_file_not_exists(temp_dir.path(), ".claude/skills/");
+    }
+
+    #[test]
+    fn test_run_generate_global_writes_to_global_paths() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string(), "cursor".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+            global: true,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(temp_dir.path(), ".claude/CLAUDE.md");
+        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+
+        assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+    }
+
+    #[test]
+    fn test_run_generate_global_ignores_nested_depth() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(
+            temp_dir.path(),
+            "subproject/ai-rules/nested.md",
+            TEST_RULE_CONTENT,
+        );
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+            global: true,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(temp_dir.path(), ".claude/CLAUDE.md");
+        assert_file_not_exists(temp_dir.path(), "subproject/.claude/CLAUDE.md");
+    }
+
+    #[test]
+    fn test_run_generate_global_skips_gitignore() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: true,
+            nested_depth: NESTED_DEPTH,
+            global: true,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_not_exists(temp_dir.path(), ".gitignore");
     }
 }

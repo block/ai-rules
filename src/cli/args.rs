@@ -41,13 +41,15 @@ pub enum Commands {
   ai-rules generate                           # Generate using config file settings (or all default values if no config file)
   ai-rules generate --agents claude,cursor    # Generate for specific agents only
   ai-rules generate --agents claude,cursor --nested-depth 5        # Specific agents in nested directories
+  ai-rules generate --global                  # Generate in home directory for global tool configuration
 
 Configuration Precedence (highest to lowest):
-  1. CLI options (--agents, --nested-depth, --gitignore)
+  1. CLI options (--agents, --nested-depth, --gitignore, --global)
   2. Config file: ai-rules/ai-rules-config.yaml
   3. Default values (all agents, depth 0, generated files are NOT git ignored)
 
-💡 Tip: Run 'ai-rules status' first to check sync status")]
+💡 Tip: Run 'ai-rules status' first to check sync status
+💡 Tip: When using --global, source rules are read from ~/ai-rules/")]
 pub struct GenerateArgs {
     #[arg(
         long,
@@ -67,6 +69,11 @@ pub struct GenerateArgs {
         help = "Maximum nested directory depth to traverse (0 = current directory only)"
     )]
     pub nested_depth: Option<usize>,
+    #[arg(
+        long,
+        help = "Generate rules in the home directory for global tool configuration (reads from ~/ai-rules/)"
+    )]
+    pub global: bool,
 }
 
 #[derive(Args)]
@@ -119,6 +126,7 @@ pub struct ResolvedGenerateArgs {
     pub command_agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
+    pub global: bool,
 }
 
 #[derive(Debug)]

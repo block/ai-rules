@@ -56,6 +56,7 @@ impl GenerateArgs {
             command_agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
+            global: self.global,
         }
     }
 }

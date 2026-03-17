@@ -8,9 +8,17 @@ pub use args::*;
 
 use crate::commands::{run_clean, run_generate, run_init, run_list_agents, run_status};
 use crate::config;
+use anyhow::Context;
 use clap::Parser;
+use std::path::PathBuf;
 
 const SUMMARY: &str = "Manage AI context rules across different AI coding agents";
+
+fn home_dir() -> anyhow::Result<PathBuf> {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .context("HOME environment variable is not set")
+}
 
 pub fn run_cli() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -33,7 +41,12 @@ pub fn run_cli() -> anyhow::Result<()> {
         Some(Commands::Init(init_args)) => run_init(&current_dir, init_args),
         Some(Commands::Generate(args)) => {
             let final_args = args.with_config(config.as_ref());
-            run_generate(&current_dir, final_args, use_claude_skills)
+            let generate_dir = if final_args.global {
+                home_dir()?
+            } else {
+                current_dir.clone()
+            };
+            run_generate(&generate_dir, final_args, use_claude_skills)
         }
         Some(Commands::Status(args)) => {
             let final_args = args.with_config(config.as_ref());
