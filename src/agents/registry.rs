@@ -32,6 +32,7 @@ impl AgentToolRegistry {
                 "claude",
                 if global { CLAUDE_GLOBAL_OUTPUT_FILE } else { CLAUDE_OUTPUT_FILE },
                 use_claude_skills,
+                global,
             )),
             Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
             Box::new(CursorGenerator),
@@ -76,6 +77,7 @@ impl AgentToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::CLAUDE_MCP_JSON;
 
     #[test]
     fn test_new_global_uses_global_output_paths() {
@@ -97,6 +99,25 @@ mod tests {
                 "{agent} global registry should use {expected_path}"
             );
         }
+    }
+
+    #[test]
+    fn test_new_global_claude_uses_global_mcp_generator() {
+        let registry = AgentToolRegistry::new_global(false);
+        let tool = registry.get_tool("claude").unwrap();
+        let patterns = tool.mcp_generator().unwrap().mcp_gitignore_patterns();
+        assert!(patterns.is_empty(), "global claude MCP should not produce gitignore patterns");
+    }
+
+    #[test]
+    fn test_new_project_claude_uses_dot_mcp_json() {
+        let registry = AgentToolRegistry::new(false);
+        let tool = registry.get_tool("claude").unwrap();
+        let patterns = tool.mcp_generator().unwrap().mcp_gitignore_patterns();
+        assert!(
+            patterns.iter().any(|p| p == CLAUDE_MCP_JSON),
+            "project claude MCP should use {CLAUDE_MCP_JSON}"
+        );
     }
 
     #[test]
