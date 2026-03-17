@@ -33,6 +33,7 @@ pub const FIREBENDER_OVERLAY_JSON: &str = "firebender-overlay.json";
 pub const FIREBENDER_USE_CURSOR_RULES_FIELD: &str = "useCursorRules";
 
 pub const MCP_JSON: &str = "mcp.json";
+pub const MCP_ENV_FILENAME: &str = ".env";
 pub const CLAUDE_MCP_JSON: &str = ".mcp.json";
 pub const MCP_SERVERS_FIELD: &str = "mcpServers";
 

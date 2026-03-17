@@ -741,16 +741,22 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), ".cursor/mcp.json");
         assert_file_exists(temp_dir.path(), ".roo/mcp.json");
 
+        let expected_json: serde_json::Value = serde_json::from_str(TEST_MCP_CONFIG).unwrap();
+
         let mcp_content = std::fs::read_to_string(temp_dir.path().join(".mcp.json")).unwrap();
-        assert_eq!(mcp_content.trim(), TEST_MCP_CONFIG.trim());
+        let mcp_json: serde_json::Value = serde_json::from_str(&mcp_content).unwrap();
+        assert_eq!(mcp_json, expected_json);
 
         let cursor_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".cursor/mcp.json")).unwrap();
-        assert_eq!(cursor_mcp_content.trim(), TEST_MCP_CONFIG.trim());
+        let cursor_mcp_json: serde_json::Value =
+            serde_json::from_str(&cursor_mcp_content).unwrap();
+        assert_eq!(cursor_mcp_json, expected_json);
 
         let roo_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".roo/mcp.json")).unwrap();
-        assert_eq!(roo_mcp_content.trim(), TEST_MCP_CONFIG.trim());
+        let roo_mcp_json: serde_json::Value = serde_json::from_str(&roo_mcp_content).unwrap();
+        assert_eq!(roo_mcp_json, expected_json);
     }
 
     #[test]

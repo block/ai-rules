@@ -1,9 +1,10 @@
-use crate::constants::{AI_RULE_SOURCE_DIR, MCP_JSON, MCP_SERVERS_FIELD};
+use crate::constants::{AI_RULE_SOURCE_DIR, MCP_ENV_FILENAME, MCP_JSON, MCP_SERVERS_FIELD};
 use crate::utils::file_utils::ensure_trailing_newline;
 use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -38,6 +39,106 @@ pub enum McpServerConfig {
     },
 }
 
+fn load_dot_env(current_dir: &Path) -> HashMap<String, String> {
+    let env_path = current_dir
+        .join(AI_RULE_SOURCE_DIR)
+        .join(MCP_ENV_FILENAME);
+    let mut vars = HashMap::new();
+
+    let content = match fs::read_to_string(&env_path) {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return vars,
+        Err(e) => {
+            eprintln!("Warning: failed to read {}: {e}", env_path.display());
+            return vars;
+        }
+    };
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim();
+            let value = value.trim();
+            let value = strip_surrounding_quotes(value);
+            if !key.is_empty() {
+                vars.insert(key.to_string(), value.to_string());
+            }
+        }
+    }
+    vars
+}
+
+fn strip_surrounding_quotes(s: &str) -> &str {
+    if s.len() >= 2
+        && ((s.starts_with('"') && s.ends_with('"'))
+            || (s.starts_with('\'') && s.ends_with('\'')))
+    {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+fn expand_env_vars(s: &str, dot_env: &HashMap<String, String>) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '$' && chars.peek() == Some(&'{') {
+            chars.next();
+            let mut var_name = String::new();
+            let mut closed = false;
+            for inner in chars.by_ref() {
+                if inner == '}' {
+                    closed = true;
+                    break;
+                }
+                var_name.push(inner);
+            }
+            if closed {
+                if let Ok(val) = env::var(&var_name) {
+                    result.push_str(&val);
+                } else if let Some(val) = dot_env.get(&var_name) {
+                    result.push_str(val);
+                } else {
+                    eprintln!("Warning: environment variable ${{{var_name}}} is not set");
+                    result.push('$');
+                    result.push('{');
+                    result.push_str(&var_name);
+                    result.push('}');
+                }
+            } else {
+                result.push('$');
+                result.push('{');
+                result.push_str(&var_name);
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+fn substitute_env_vars(value: &mut Value, dot_env: &HashMap<String, String>) {
+    match value {
+        Value::String(s) => *s = expand_env_vars(s, dot_env),
+        Value::Array(arr) => {
+            for item in arr {
+                substitute_env_vars(item, dot_env);
+            }
+        }
+        Value::Object(map) => {
+            for val in map.values_mut() {
+                substitute_env_vars(val, dot_env);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
     let mcp_source_path = current_dir.join(AI_RULE_SOURCE_DIR).join(MCP_JSON);
 
@@ -47,10 +148,16 @@ fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
     let content = fs::read_to_string(&mcp_source_path)
         .with_context(|| format!("Failed to read {}", mcp_source_path.display()))?;
 
-    let _config: McpConfig = serde_json::from_str(&content)
+    let mut json: Value = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
-    Ok(Some(content))
+    let _: McpConfig = serde_json::from_value(json.clone())
+        .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
+
+    let dot_env = load_dot_env(current_dir);
+    substitute_env_vars(&mut json, &dot_env);
+
+    Ok(Some(serde_json::to_string_pretty(&json)?))
 }
 
 pub fn read_mcp_config(current_dir: &Path) -> Result<Option<String>> {
@@ -74,6 +181,7 @@ pub fn extract_mcp_servers_for_firebender(current_dir: &Path) -> Result<Option<V
 mod tests {
     use super::*;
     use crate::utils::test_utils::helpers::*;
+    use std::env;
     use tempfile::TempDir;
 
     const TEST_MCP_CONFIG: &str = r#"{
@@ -333,6 +441,170 @@ mod tests {
         assert!(content.contains("remote-server"));
         assert!(content.contains("npx"));
         assert!(content.contains("https://remote.example.com/mcp"));
+    }
+
+    #[test]
+    fn test_expand_env_vars_substitutes_set_variable() {
+        unsafe { env::set_var("AI_RULES_TEST_EXPAND_1", "secret123") };
+        let result = expand_env_vars("Bearer ${AI_RULES_TEST_EXPAND_1}", &HashMap::new());
+        unsafe { env::remove_var("AI_RULES_TEST_EXPAND_1") };
+        assert_eq!(result, "Bearer secret123");
+    }
+
+    #[test]
+    fn test_expand_env_vars_leaves_unset_variable_as_placeholder() {
+        unsafe { env::remove_var("AI_RULES_TEST_UNSET_XYZ_999") };
+        let result = expand_env_vars("${AI_RULES_TEST_UNSET_XYZ_999}", &HashMap::new());
+        assert_eq!(result, "${AI_RULES_TEST_UNSET_XYZ_999}");
+    }
+
+    #[test]
+    fn test_expand_env_vars_passes_through_plain_strings() {
+        let result = expand_env_vars("no substitution needed", &HashMap::new());
+        assert_eq!(result, "no substitution needed");
+    }
+
+    #[test]
+    fn test_expand_env_vars_uses_dot_env_when_shell_var_unset() {
+        unsafe { env::remove_var("AI_RULES_TEST_DOT_ENV_VAR") };
+        let mut dot_env = HashMap::new();
+        dot_env.insert("AI_RULES_TEST_DOT_ENV_VAR".to_string(), "from-dot-env".to_string());
+        let result = expand_env_vars("${AI_RULES_TEST_DOT_ENV_VAR}", &dot_env);
+        assert_eq!(result, "from-dot-env");
+    }
+
+    #[test]
+    fn test_expand_env_vars_shell_var_takes_priority_over_dot_env() {
+        unsafe { env::set_var("AI_RULES_TEST_PRIORITY_VAR", "from-shell") };
+        let mut dot_env = HashMap::new();
+        dot_env.insert("AI_RULES_TEST_PRIORITY_VAR".to_string(), "from-dot-env".to_string());
+        let result = expand_env_vars("${AI_RULES_TEST_PRIORITY_VAR}", &dot_env);
+        unsafe { env::remove_var("AI_RULES_TEST_PRIORITY_VAR") };
+        assert_eq!(result, "from-shell");
+    }
+
+    #[test]
+    fn test_load_dot_env_parses_key_value_pairs() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.env",
+            "API_KEY=secret\nOTHER_KEY=value\n",
+        );
+        let vars = load_dot_env(temp_dir.path());
+        assert_eq!(vars.get("API_KEY").unwrap(), "secret");
+        assert_eq!(vars.get("OTHER_KEY").unwrap(), "value");
+    }
+
+    #[test]
+    fn test_load_dot_env_skips_comments_and_blank_lines() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.env",
+            "# comment\n\nAPI_KEY=secret\n",
+        );
+        let vars = load_dot_env(temp_dir.path());
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars.get("API_KEY").unwrap(), "secret");
+    }
+
+    #[test]
+    fn test_load_dot_env_strips_surrounding_quotes() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.env",
+            "DOUBLE=\"quoted value\"\nSINGLE='also quoted'\n",
+        );
+        let vars = load_dot_env(temp_dir.path());
+        assert_eq!(vars.get("DOUBLE").unwrap(), "quoted value");
+        assert_eq!(vars.get("SINGLE").unwrap(), "also quoted");
+    }
+
+    #[test]
+    fn test_load_dot_env_handles_value_containing_equals_sign() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(
+            temp_dir.path(),
+            "ai-rules/.env",
+            "API_URL=https://example.com/path?foo=bar\n",
+        );
+        let vars = load_dot_env(temp_dir.path());
+        assert_eq!(vars.get("API_URL").unwrap(), "https://example.com/path?foo=bar");
+    }
+
+    #[test]
+    fn test_load_dot_env_returns_empty_when_file_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        let vars = load_dot_env(temp_dir.path());
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn test_read_mcp_config_substitutes_vars_from_dot_env_file() {
+        let temp_dir = TempDir::new().unwrap();
+        unsafe { env::remove_var("AI_RULES_TEST_DOT_ENV_KEY") };
+        create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_TEST_DOT_ENV_KEY=from-dot-env\n");
+        let config = r#"{
+  "mcpServers": {
+    "test-server": {
+      "command": "npx",
+      "env": {
+        "API_KEY": "${AI_RULES_TEST_DOT_ENV_KEY}"
+      }
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", config);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap().unwrap();
+        assert!(result.contains("from-dot-env"));
+        assert!(!result.contains("${AI_RULES_TEST_DOT_ENV_KEY}"));
+    }
+
+    #[test]
+    fn test_read_mcp_config_substitutes_env_vars_in_output() {
+        let temp_dir = TempDir::new().unwrap();
+        unsafe { env::set_var("AI_RULES_TEST_API_KEY", "my-api-key") };
+        let config = r#"{
+  "mcpServers": {
+    "test-server": {
+      "command": "npx",
+      "env": {
+        "API_KEY": "${AI_RULES_TEST_API_KEY}"
+      }
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", config);
+
+        let result = read_mcp_config(temp_dir.path());
+        unsafe { env::remove_var("AI_RULES_TEST_API_KEY") };
+        let content = result.unwrap().unwrap();
+
+        assert!(content.contains("my-api-key"));
+        assert!(!content.contains("${AI_RULES_TEST_API_KEY}"));
+    }
+
+    #[test]
+    fn test_read_mcp_config_leaves_unset_env_vars_as_placeholder() {
+        let temp_dir = TempDir::new().unwrap();
+        unsafe { env::remove_var("AI_RULES_TEST_MISSING_KEY_999") };
+        let config = r#"{
+  "mcpServers": {
+    "test-server": {
+      "command": "npx",
+      "env": {
+        "API_KEY": "${AI_RULES_TEST_MISSING_KEY_999}"
+      }
+    }
+  }
+}"#;
+        create_file(temp_dir.path(), "ai-rules/mcp.json", config);
+
+        let result = read_mcp_config(temp_dir.path()).unwrap().unwrap();
+        assert!(result.contains("${AI_RULES_TEST_MISSING_KEY_999}"));
     }
 
     #[test]
