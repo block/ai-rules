@@ -20,17 +20,17 @@ pub struct CodexGenerator {
 }
 
 impl CodexGenerator {
-    pub fn new() -> Self {
+    pub fn new(output_filename: &str) -> Self {
         Self {
             name: "codex".to_string(),
-            output_filename: AGENTS_MD_FILENAME.to_string(),
+            output_filename: output_filename.to_string(),
         }
     }
 }
 
 impl Default for CodexGenerator {
     fn default() -> Self {
-        Self::new()
+        Self::new(AGENTS_MD_FILENAME)
     }
 }
 
@@ -109,13 +109,13 @@ mod tests {
 
     #[test]
     fn test_codex_generator_name() {
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
         assert_eq!(generator.name(), "codex");
     }
 
     #[test]
     fn test_codex_generator_gitignore_patterns() {
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
         let patterns = generator.gitignore_patterns();
         assert_eq!(patterns, vec!["AGENTS.md".to_string()]);
     }
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn test_codex_generator_clean() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
 
         // Create an AGENTS.md file
         create_file(temp_dir.path(), "AGENTS.md", "existing content");
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn test_codex_generator_generate_agent_contents() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
         let source_files = vec![create_test_source_file(
             "rule1",
             "Test rule",
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_codex_generator_check_agent_contents_in_sync() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
         let source_files = vec![create_test_source_file(
             "rule1",
             "Test rule",
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_codex_generator_check_agent_contents_out_of_sync() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
         let source_files = vec![create_test_source_file(
             "rule1",
             "Test rule",
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_codex_generator_generate_symlink() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
 
         // Create the source file for symlinking
         create_file(temp_dir.path(), "ai-rules/AGENTS.md", "# Source content");
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_codex_generator_check_symlink() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = CodexGenerator::new();
+        let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
 
         // Create source and symlink
         create_file(temp_dir.path(), "ai-rules/AGENTS.md", "# Source content");

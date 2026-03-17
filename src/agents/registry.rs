@@ -4,7 +4,11 @@ use crate::agents::{
     firebender::FirebenderGenerator, gemini::GeminiGenerator, roo::RooGenerator,
     single_file_based::SingleFileBasedGenerator,
 };
-use crate::constants::{AGENTS_MD_FILENAME, CLAUDE_GLOBAL_OUTPUT_FILE, CLAUDE_OUTPUT_FILE};
+use crate::constants::{
+    AGENTS_MD_FILENAME, AMP_GLOBAL_OUTPUT_FILE, CLAUDE_GLOBAL_OUTPUT_FILE, CLAUDE_OUTPUT_FILE,
+    CODEX_GLOBAL_OUTPUT_FILE, FIREBENDER_GLOBAL_JSON, FIREBENDER_JSON, GEMINI_GLOBAL_OUTPUT_FILE,
+    GEMINI_OUTPUT_FILE,
+};
 use std::collections::HashMap;
 
 pub struct AgentToolRegistry {
@@ -13,30 +17,38 @@ pub struct AgentToolRegistry {
 
 impl AgentToolRegistry {
     pub fn new(use_claude_skills: bool) -> Self {
-        Self::create(CLAUDE_OUTPUT_FILE, use_claude_skills)
+        Self::create(false, use_claude_skills)
     }
 
     pub fn new_global(use_claude_skills: bool) -> Self {
-        Self::create(CLAUDE_GLOBAL_OUTPUT_FILE, use_claude_skills)
+        Self::create(true, use_claude_skills)
     }
 
-    fn create(claude_output_filename: &str, use_claude_skills: bool) -> Self {
+    fn create(global: bool, use_claude_skills: bool) -> Self {
         let mut tools: HashMap<String, Box<dyn AgentRuleGenerator>> = HashMap::new();
 
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
             Box::new(ClaudeGenerator::new(
                 "claude",
-                claude_output_filename,
+                if global { CLAUDE_GLOBAL_OUTPUT_FILE } else { CLAUDE_OUTPUT_FILE },
                 use_claude_skills,
             )),
             Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
             Box::new(CursorGenerator),
-            Box::new(FirebenderGenerator),
+            Box::new(FirebenderGenerator::new(
+                if global { FIREBENDER_GLOBAL_JSON } else { FIREBENDER_JSON },
+            )),
             Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
-            Box::new(AmpGenerator),
-            Box::new(CodexGenerator::new()),
+            Box::new(AmpGenerator::new(
+                if global { AMP_GLOBAL_OUTPUT_FILE } else { AGENTS_MD_FILENAME },
+            )),
+            Box::new(CodexGenerator::new(
+                if global { CODEX_GLOBAL_OUTPUT_FILE } else { AGENTS_MD_FILENAME },
+            )),
             Box::new(SingleFileBasedGenerator::new("copilot", AGENTS_MD_FILENAME)),
-            Box::new(GeminiGenerator),
+            Box::new(GeminiGenerator::new(
+                if global { GEMINI_GLOBAL_OUTPUT_FILE } else { GEMINI_OUTPUT_FILE },
+            )),
             Box::new(SingleFileBasedGenerator::new(
                 "kilocode",
                 AGENTS_MD_FILENAME,
@@ -66,30 +78,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new_global_uses_dot_claude_output_path() {
+    fn test_new_global_uses_global_output_paths() {
         let registry = AgentToolRegistry::new_global(false);
-        let tool = registry.get_tool("claude").unwrap();
-        let patterns = tool.gitignore_patterns();
 
-        assert!(
-            patterns.iter().any(|p| p == CLAUDE_GLOBAL_OUTPUT_FILE),
-            "global registry should use {CLAUDE_GLOBAL_OUTPUT_FILE} as claude output path"
-        );
-        assert!(
-            !patterns.iter().any(|p| p == CLAUDE_OUTPUT_FILE),
-            "global registry should not use root {CLAUDE_OUTPUT_FILE}"
-        );
+        let cases = [
+            ("claude", CLAUDE_GLOBAL_OUTPUT_FILE),
+            ("gemini", GEMINI_GLOBAL_OUTPUT_FILE),
+            ("codex", CODEX_GLOBAL_OUTPUT_FILE),
+            ("amp", AMP_GLOBAL_OUTPUT_FILE),
+            ("firebender", FIREBENDER_GLOBAL_JSON),
+        ];
+
+        for (agent, expected_path) in cases {
+            let tool = registry.get_tool(agent).unwrap();
+            let patterns = tool.gitignore_patterns();
+            assert!(
+                patterns.iter().any(|p| p == expected_path),
+                "{agent} global registry should use {expected_path}"
+            );
+        }
     }
 
     #[test]
-    fn test_new_uses_root_claude_output_path() {
+    fn test_new_uses_project_output_paths() {
         let registry = AgentToolRegistry::new(false);
-        let tool = registry.get_tool("claude").unwrap();
-        let patterns = tool.gitignore_patterns();
 
-        assert!(
-            patterns.iter().any(|p| p == CLAUDE_OUTPUT_FILE),
-            "default registry should use root {CLAUDE_OUTPUT_FILE} as claude output path"
-        );
+        let cases = [
+            ("claude", CLAUDE_OUTPUT_FILE),
+            ("gemini", GEMINI_OUTPUT_FILE),
+            ("codex", AGENTS_MD_FILENAME),
+            ("amp", AGENTS_MD_FILENAME),
+            ("firebender", FIREBENDER_JSON),
+        ];
+
+        for (agent, expected_path) in cases {
+            let tool = registry.get_tool(agent).unwrap();
+            let patterns = tool.gitignore_patterns();
+            assert!(
+                patterns.iter().any(|p| p == expected_path),
+                "{agent} default registry should use {expected_path}"
+            );
+        }
     }
 }

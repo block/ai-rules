@@ -4,7 +4,7 @@ use crate::agents::external_skills_generator::ExternalSkillsGenerator;
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::constants::{
-    AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_JSON, FIREBENDER_OVERLAY_JSON,
+    AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_OVERLAY_JSON,
     FIREBENDER_SKILLS_DIR, FIREBENDER_USE_CURSOR_RULES_FIELD, MCP_SERVERS_FIELD,
     OPTIONAL_RULES_FILENAME,
 };
@@ -19,7 +19,17 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub struct FirebenderGenerator;
+pub struct FirebenderGenerator {
+    output_filename: String,
+}
+
+impl FirebenderGenerator {
+    pub fn new(output_filename: &str) -> Self {
+        Self {
+            output_filename: output_filename.to_string(),
+        }
+    }
+}
 
 impl AgentRuleGenerator for FirebenderGenerator {
     fn name(&self) -> &str {
@@ -27,7 +37,7 @@ impl AgentRuleGenerator for FirebenderGenerator {
     }
 
     fn clean(&self, current_dir: &Path) -> Result<()> {
-        let firebender_file = current_dir.join(FIREBENDER_JSON);
+        let firebender_file = current_dir.join(&self.output_filename);
         if firebender_file.exists() {
             fs::remove_file(&firebender_file)
                 .with_context(|| format!("Failed to remove {}", firebender_file.display()))?;
@@ -46,14 +56,14 @@ impl AgentRuleGenerator for FirebenderGenerator {
             return agent_files;
         }
 
-        let firebender_file_path = current_dir.join(FIREBENDER_JSON);
+        let firebender_file_path = current_dir.join(&self.output_filename);
 
         match generate_firebender_json_with_overlay(source_files, Some(current_dir)) {
             Ok(content) => {
                 agent_files.insert(firebender_file_path, content);
             }
             Err(e) => {
-                eprintln!("Warning: Failed to generate firebender.json: {e}");
+                eprintln!("Warning: Failed to generate {}: {e}", self.output_filename);
             }
         }
 
@@ -65,7 +75,7 @@ impl AgentRuleGenerator for FirebenderGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        let firebender_file = current_dir.join(FIREBENDER_JSON);
+        let firebender_file = current_dir.join(&self.output_filename);
 
         if source_files.is_empty() {
             return Ok(!firebender_file.exists());
@@ -80,7 +90,7 @@ impl AgentRuleGenerator for FirebenderGenerator {
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
-        let firebender_file = current_dir.join(FIREBENDER_JSON);
+        let firebender_file = current_dir.join(&self.output_filename);
         if !firebender_file.exists() {
             return Ok(false);
         }
@@ -98,7 +108,7 @@ impl AgentRuleGenerator for FirebenderGenerator {
     }
 
     fn gitignore_patterns(&self) -> Vec<String> {
-        vec![FIREBENDER_JSON.to_string()]
+        vec![self.output_filename.clone()]
     }
 
     fn generate_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
@@ -109,7 +119,7 @@ impl AgentRuleGenerator for FirebenderGenerator {
             return Ok(vec![]);
         }
 
-        let firebender_path = current_dir.join(FIREBENDER_JSON);
+        let firebender_path = current_dir.join(&self.output_filename);
         let content = generate_firebender_symlink_content(current_dir)?;
 
         fs::write(&firebender_path, content)
@@ -265,7 +275,7 @@ mod tests {
     use std::slice;
 
     use super::*;
-    use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_OVERLAY_JSON};
+    use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, FIREBENDER_JSON, FIREBENDER_OVERLAY_JSON};
     use crate::utils::test_utils::helpers::*;
     use tempfile::TempDir;
 
@@ -419,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_generate_agent_contents() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
         let source_files = vec![create_standard_test_source_file()];
 
@@ -437,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_clean_non_existing_file() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
 
         let result = generator.clean(temp_dir.path());
@@ -448,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_clean_existing_file() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
 
         create_file(temp_dir.path(), FIREBENDER_JSON, "test content");
@@ -462,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_check_empty_source_files_no_file() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
 
         let result = generator
@@ -474,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_check_empty_source_files_with_file() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
 
         create_file(temp_dir.path(), FIREBENDER_JSON, "stale content");
@@ -488,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_check_with_matching_content() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
         let source_file = create_standard_test_source_file();
 
@@ -508,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_check_with_incorrect_content() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
         let source_file = create_standard_test_source_file();
 
@@ -593,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_generate_symlink_creates_firebender_json() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = setup_symlink_project();
         write_agents_md(&temp_dir);
 
@@ -617,7 +627,7 @@ mod tests {
 
     #[test]
     fn test_generate_symlink_applies_overlay() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = setup_symlink_project();
         write_agents_md(&temp_dir);
 
@@ -634,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_generate_symlink_without_agents_md() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = setup_symlink_project();
 
         let result = generator.generate_symlink(temp_dir.path()).unwrap();
@@ -645,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_check_symlink_with_generated_content() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = setup_symlink_project();
         write_agents_md(&temp_dir);
 
@@ -685,7 +695,7 @@ mod tests {
 
     #[test]
     fn test_gitignore_patterns_excludes_overlay() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let patterns = generator.gitignore_patterns();
 
         assert_eq!(patterns.len(), 1);
@@ -712,7 +722,7 @@ mod tests {
 
     #[test]
     fn test_clean_with_nonexistent_directory() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
 
         let nonexistent_path = Path::new("/nonexistent/directory/that/should/not/exist");
 
@@ -722,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_generate_agent_contents_with_generation_failure() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let temp_dir = TempDir::new().unwrap();
         let source_files = vec![create_standard_test_source_file()];
 
@@ -801,7 +811,7 @@ mod tests {
     #[test]
     fn test_generate_firebender_json_with_mcp() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
 
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
@@ -831,7 +841,7 @@ mod tests {
     #[test]
     fn test_generate_firebender_json_without_mcp() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
 
         let source_files = vec![create_standard_test_source_file()];
 
@@ -853,7 +863,7 @@ mod tests {
     #[test]
     fn test_generate_firebender_json_mcp_with_overlay() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
 
         // Create MCP config
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
@@ -887,7 +897,7 @@ mod tests {
     #[test]
     fn test_generate_symlink_with_mcp() {
         let temp_dir = TempDir::new().unwrap();
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
 
         create_file(
             temp_dir.path(),
@@ -1013,20 +1023,20 @@ Create a git commit with proper formatting."#;
 
     #[test]
     fn test_firebender_has_skills_generator() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         assert!(generator.skills_generator().is_some());
     }
 
     #[test]
     fn test_firebender_skills_target_dir() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let skills_gen = generator.skills_generator().unwrap();
         assert_eq!(skills_gen.skills_target_dir(), ".firebender/skills");
     }
 
     #[test]
     fn test_firebender_skills_gitignore_patterns() {
-        let generator = FirebenderGenerator;
+        let generator = FirebenderGenerator::new(FIREBENDER_JSON);
         let skills_gen = generator.skills_generator().unwrap();
         let patterns = skills_gen.skills_gitignore_patterns();
         assert_eq!(patterns, vec![".firebender/skills/ai-rules-generated-*"]);

@@ -11,6 +11,14 @@ pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
 pub const CLAUDE_OUTPUT_FILE: &str = "CLAUDE.md";
 pub const CLAUDE_GLOBAL_OUTPUT_FILE: &str = ".claude/CLAUDE.md";
 pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
+
+pub const GEMINI_OUTPUT_FILE: &str = "GEMINI.md";
+pub const GEMINI_GLOBAL_OUTPUT_FILE: &str = ".gemini/GEMINI.md";
+
+pub const AMP_GLOBAL_OUTPUT_FILE: &str = ".config/amp/AGENTS.md";
+pub const CODEX_GLOBAL_OUTPUT_FILE: &str = ".codex/AGENTS.md";
+pub const FIREBENDER_GLOBAL_JSON: &str = ".firebender/firebender.json";
+
 #[allow(dead_code)]
 pub const CODEX_SKILLS_DIR: &str = ".codex/skills";
 #[allow(dead_code)]

@@ -17,9 +17,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const GEMINI_SETTINGS_JSON: &str = ".gemini/settings.json";
-const GEMINI_AGENT_FILE: &str = "GEMINI.md";
 
-pub struct GeminiGenerator;
+pub struct GeminiGenerator {
+    output_filename: String,
+}
+
+impl GeminiGenerator {
+    pub fn new(output_filename: &str) -> Self {
+        Self {
+            output_filename: output_filename.to_string(),
+        }
+    }
+}
 
 impl AgentRuleGenerator for GeminiGenerator {
     fn name(&self) -> &str {
@@ -27,7 +36,7 @@ impl AgentRuleGenerator for GeminiGenerator {
     }
 
     fn clean(&self, current_dir: &Path) -> Result<()> {
-        clean_generated_files(current_dir, GEMINI_AGENT_FILE)?;
+        clean_generated_files(current_dir, &self.output_filename)?;
         if let Some(mcp) = self.mcp_generator() {
             mcp.clean_mcp(current_dir)?;
         }
@@ -39,7 +48,7 @@ impl AgentRuleGenerator for GeminiGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
-        generate_agent_file_contents(source_files, current_dir, GEMINI_AGENT_FILE)
+        generate_agent_file_contents(source_files, current_dir, &self.output_filename)
     }
 
     fn check_agent_contents(
@@ -47,16 +56,16 @@ impl AgentRuleGenerator for GeminiGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        check_in_sync(source_files, current_dir, GEMINI_AGENT_FILE)
+        check_in_sync(source_files, current_dir, &self.output_filename)
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
-        let output_file = current_dir.join(GEMINI_AGENT_FILE);
+        let output_file = current_dir.join(&self.output_filename);
         check_agents_md_symlink(current_dir, &output_file)
     }
 
     fn gitignore_patterns(&self) -> Vec<String> {
-        let mut patterns = vec![GEMINI_AGENT_FILE.to_string()];
+        let mut patterns = vec![self.output_filename.clone()];
         if let Some(mcp) = self.mcp_generator() {
             patterns.extend(mcp.mcp_gitignore_patterns());
         }
@@ -64,9 +73,9 @@ impl AgentRuleGenerator for GeminiGenerator {
     }
 
     fn generate_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
-        let success = create_symlink_to_agents_md(current_dir, Path::new(GEMINI_AGENT_FILE))?;
+        let success = create_symlink_to_agents_md(current_dir, Path::new(&self.output_filename))?;
         if success {
-            Ok(vec![current_dir.join(GEMINI_AGENT_FILE)])
+            Ok(vec![current_dir.join(&self.output_filename)])
         } else {
             Ok(vec![])
         }
@@ -77,16 +86,16 @@ impl AgentRuleGenerator for GeminiGenerator {
     }
 
     fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
-        let success = create_symlink_to_inlined_file(current_dir, Path::new(GEMINI_AGENT_FILE))?;
+        let success = create_symlink_to_inlined_file(current_dir, Path::new(&self.output_filename))?;
         if success {
-            Ok(vec![current_dir.join(GEMINI_AGENT_FILE)])
+            Ok(vec![current_dir.join(&self.output_filename)])
         } else {
             Ok(vec![])
         }
     }
 
     fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
-        let output_file = current_dir.join(GEMINI_AGENT_FILE);
+        let output_file = current_dir.join(&self.output_filename);
         check_inlined_file_symlink(current_dir, &output_file)
     }
 
@@ -288,6 +297,7 @@ impl GeminiMcpGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::GEMINI_OUTPUT_FILE;
     use crate::utils::test_utils::helpers::*;
     use tempfile::TempDir;
 
@@ -382,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_gemini_generator_gitignore_patterns() {
-        let generator = GeminiGenerator;
+        let generator = GeminiGenerator::new(GEMINI_OUTPUT_FILE);
         let patterns = generator.gitignore_patterns();
 
         assert!(patterns.contains(&"GEMINI.md".to_string()));
@@ -391,7 +401,7 @@ mod tests {
 
     #[test]
     fn test_gemini_generator_name() {
-        let generator = GeminiGenerator;
+        let generator = GeminiGenerator::new(GEMINI_OUTPUT_FILE);
         assert_eq!(generator.name(), "gemini");
     }
 

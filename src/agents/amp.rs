@@ -6,7 +6,7 @@ use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
 use crate::agents::skills_generator::SkillsGeneratorTrait;
-use crate::constants::{AGENTS_MD_FILENAME, AMP_COMMANDS_DIR, AMP_SKILLS_DIR};
+use crate::constants::{AMP_COMMANDS_DIR, AMP_SKILLS_DIR};
 use crate::models::SourceFile;
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
@@ -16,7 +16,17 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-pub struct AmpGenerator;
+pub struct AmpGenerator {
+    output_filename: String,
+}
+
+impl AmpGenerator {
+    pub fn new(output_filename: &str) -> Self {
+        Self {
+            output_filename: output_filename.to_string(),
+        }
+    }
+}
 
 impl AgentRuleGenerator for AmpGenerator {
     fn name(&self) -> &str {
@@ -24,7 +34,7 @@ impl AgentRuleGenerator for AmpGenerator {
     }
 
     fn clean(&self, current_dir: &Path) -> Result<()> {
-        clean_generated_files(current_dir, AGENTS_MD_FILENAME)
+        clean_generated_files(current_dir, &self.output_filename)
     }
 
     fn generate_agent_contents(
@@ -32,7 +42,7 @@ impl AgentRuleGenerator for AmpGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> HashMap<PathBuf, String> {
-        generate_agent_file_contents(source_files, current_dir, AGENTS_MD_FILENAME)
+        generate_agent_file_contents(source_files, current_dir, &self.output_filename)
     }
 
     fn check_agent_contents(
@@ -40,22 +50,22 @@ impl AgentRuleGenerator for AmpGenerator {
         source_files: &[SourceFile],
         current_dir: &Path,
     ) -> Result<bool> {
-        check_in_sync(source_files, current_dir, AGENTS_MD_FILENAME)
+        check_in_sync(source_files, current_dir, &self.output_filename)
     }
 
     fn check_symlink(&self, current_dir: &Path) -> Result<bool> {
-        let output_file = current_dir.join(AGENTS_MD_FILENAME);
+        let output_file = current_dir.join(&self.output_filename);
         check_agents_md_symlink(current_dir, &output_file)
     }
 
     fn gitignore_patterns(&self) -> Vec<String> {
-        vec![AGENTS_MD_FILENAME.to_string()]
+        vec![self.output_filename.clone()]
     }
 
     fn generate_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
-        let success = create_symlink_to_agents_md(current_dir, Path::new(AGENTS_MD_FILENAME))?;
+        let success = create_symlink_to_agents_md(current_dir, Path::new(&self.output_filename))?;
         if success {
-            Ok(vec![current_dir.join(AGENTS_MD_FILENAME)])
+            Ok(vec![current_dir.join(&self.output_filename)])
         } else {
             Ok(vec![])
         }
@@ -66,16 +76,16 @@ impl AgentRuleGenerator for AmpGenerator {
     }
 
     fn generate_inlined_symlink(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
-        let success = create_symlink_to_inlined_file(current_dir, Path::new(AGENTS_MD_FILENAME))?;
+        let success = create_symlink_to_inlined_file(current_dir, Path::new(&self.output_filename))?;
         if success {
-            Ok(vec![current_dir.join(AGENTS_MD_FILENAME)])
+            Ok(vec![current_dir.join(&self.output_filename)])
         } else {
             Ok(vec![])
         }
     }
 
     fn check_inlined_symlink(&self, current_dir: &Path) -> Result<bool> {
-        let output_file = current_dir.join(AGENTS_MD_FILENAME);
+        let output_file = current_dir.join(&self.output_filename);
         check_inlined_file_symlink(current_dir, &output_file)
     }
 
@@ -91,25 +101,25 @@ impl AgentRuleGenerator for AmpGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::{AI_RULE_SOURCE_DIR, COMMANDS_DIR};
+    use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, COMMANDS_DIR};
     use std::fs;
     use tempfile::TempDir;
 
     #[test]
     fn test_amp_generator_name() {
-        let generator = AmpGenerator;
+        let generator = AmpGenerator::new(AGENTS_MD_FILENAME);
         assert_eq!(generator.name(), "amp");
     }
 
     #[test]
     fn test_amp_generator_has_command_generator() {
-        let generator = AmpGenerator;
+        let generator = AmpGenerator::new(AGENTS_MD_FILENAME);
         assert!(generator.command_generator().is_some());
     }
 
     #[test]
     fn test_amp_generator_gitignore_patterns() {
-        let generator = AmpGenerator;
+        let generator = AmpGenerator::new(AGENTS_MD_FILENAME);
         let patterns = generator.gitignore_patterns();
         assert!(patterns.contains(&"AGENTS.md".to_string()));
     }
@@ -123,7 +133,7 @@ mod tests {
         let command_content = "---\ndescription: Test\n---\n\nCommand content";
         fs::write(commands_dir.join("test.md"), command_content).unwrap();
 
-        let generator = AmpGenerator;
+        let generator = AmpGenerator::new(AGENTS_MD_FILENAME);
         let cmd_gen = generator.command_generator().unwrap();
 
         // generate_command_symlinks creates symlinks (flat structure with -ai-rules.md suffix)
