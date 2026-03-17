@@ -54,9 +54,7 @@ impl DirectoryFilter {
         }
 
         match self {
-            DirectoryFilter::Gitignore(gitignore) => {
-                !gitignore.matched(dir_path, true).is_ignore()
-            }
+            DirectoryFilter::Gitignore(gitignore) => !gitignore.matched(dir_path, true).is_ignore(),
             DirectoryFilter::Hardcoded => should_traverse_directory(dir_name),
         }
     }
@@ -739,9 +737,7 @@ mod tests {
         let filter = DirectoryFilter::from_project_root(temp_path);
         let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
 
-        assert!(!visited
-            .iter()
-            .any(|p| p.file_name().unwrap() == "ai-rules"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "ai-rules"));
         assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
     }
 

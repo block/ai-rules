@@ -74,8 +74,12 @@ pub fn check_project_status(
     let mut has_ai_rules = false;
     let filter = file_utils::DirectoryFilter::from_project_root(current_dir);
 
-    let traversal_result =
-        file_utils::traverse_project_directories(current_dir, args.nested_depth, 0, &filter, &mut |dir| {
+    let traversal_result = file_utils::traverse_project_directories(
+        current_dir,
+        args.nested_depth,
+        0,
+        &filter,
+        &mut |dir| {
             let is_symlink_mode = detect_symlink_mode(dir);
             let mut source_files = Vec::new();
             if is_symlink_mode {
@@ -117,7 +121,8 @@ pub fn check_project_status(
             }
 
             Ok(())
-        });
+        },
+    );
 
     match traversal_result {
         Err(e) if e.is::<BodyFilesOutOfSync>() => {

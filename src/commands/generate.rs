@@ -2,7 +2,9 @@ use crate::agents::AgentToolRegistry;
 use crate::cli::ResolvedGenerateArgs;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::operations::{self, GenerationResult};
-use crate::utils::file_utils::{traverse_project_directories, write_directory_files, DirectoryFilter};
+use crate::utils::file_utils::{
+    traverse_project_directories, write_directory_files, DirectoryFilter,
+};
 use crate::utils::print_utils::print_success;
 use anyhow::Result;
 use std::collections::HashMap;
