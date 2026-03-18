@@ -77,4 +77,4 @@ See the [Supported Agents](agents.md) table for which agents support MCP and the
 | Cursor | `~/.cursor/mcp.json` |
 | Gemini | `~/.gemini/settings.json` (merged into `mcpServers`) |
 
-Generated servers are prefixed with `ai-rules-generated-` so they can be identified and cleaned up without affecting manually configured servers.
+Generated servers are prefixed with `air-` so they can be identified and cleaned up without affecting manually configured servers.

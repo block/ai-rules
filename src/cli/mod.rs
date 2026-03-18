@@ -15,9 +15,11 @@ use std::path::PathBuf;
 const SUMMARY: &str = "Manage AI context rules across different AI coding agents";
 
 fn home_dir() -> anyhow::Result<PathBuf> {
-    std::env::var_os("HOME")
+    let path = std::env::var_os("HOME")
         .map(PathBuf::from)
-        .context("HOME environment variable is not set")
+        .context("HOME environment variable is not set")?;
+    anyhow::ensure!(!path.as_os_str().is_empty(), "HOME environment variable is empty");
+    Ok(path)
 }
 
 pub fn run_cli() -> anyhow::Result<()> {

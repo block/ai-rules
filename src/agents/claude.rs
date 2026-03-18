@@ -5,8 +5,8 @@ use crate::agents::mcp_generator::{ExternalMcpGenerator, McpGeneratorTrait};
 use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::constants::{
-    CLAUDE_COMMANDS_DIR, CLAUDE_COMMANDS_SUBDIR, CLAUDE_MCP_JSON, CLAUDE_SKILLS_DIR,
-    GENERATED_FILE_PREFIX,
+    CLAUDE_COMMANDS_DIR, CLAUDE_COMMANDS_SUBDIR, CLAUDE_MCP_JSON, CLAUDE_SETTINGS_JSON,
+    CLAUDE_SKILLS_DIR, GENERATED_FILE_PREFIX, GENERATED_MCP_SERVER_PREFIX,
 };
 use crate::models::source_file::SourceFile;
 use crate::operations::{claude_skills, generate_inlined_required_content};
@@ -21,7 +21,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const CLAUDE_SETTINGS_JSON: &str = ".claude.json";
 
 pub struct ClaudeGenerator {
     name: String,
@@ -204,7 +203,7 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
 
         let mut merged_servers: Map<String, Value> = existing_servers
             .into_iter()
-            .filter(|(name, _)| !name.starts_with(GENERATED_FILE_PREFIX))
+            .filter(|(name, _)| !name.starts_with(GENERATED_MCP_SERVER_PREFIX))
             .collect();
 
         if let Some(obj) = prefixed_servers.as_object() {
@@ -231,7 +230,7 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
             if let Some(obj) = json.as_object_mut() {
                 if let Some(mcp_servers) = obj.get_mut("mcpServers") {
                     if let Some(servers_obj) = mcp_servers.as_object_mut() {
-                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_FILE_PREFIX));
+                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_MCP_SERVER_PREFIX));
                     }
                 }
                 fs::write(&target_path, serde_json::to_string_pretty(&json)?)?;
@@ -255,7 +254,7 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
                     None => true,
                     Some(val) => val
                         .as_object()
-                        .is_none_or(|o| !o.keys().any(|k| k.starts_with(GENERATED_FILE_PREFIX))),
+                        .is_none_or(|o| !o.keys().any(|k| k.starts_with(GENERATED_MCP_SERVER_PREFIX))),
                 };
                 return Ok(has_no_generated);
             }
@@ -275,7 +274,7 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
             .and_then(|v| v.as_object())
             .map(|obj| {
                 obj.iter()
-                    .filter(|(name, _)| name.starts_with(GENERATED_FILE_PREFIX))
+                    .filter(|(name, _)| name.starts_with(GENERATED_MCP_SERVER_PREFIX))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect()
             })
@@ -299,7 +298,7 @@ impl ClaudeGlobalMcpGenerator {
             Value::Object(
                 obj.iter()
                     .map(|(name, config)| {
-                        (format!("{}{}", GENERATED_FILE_PREFIX, name), config.clone())
+                        (format!("{}{}", GENERATED_MCP_SERVER_PREFIX, name), config.clone())
                     })
                     .collect(),
             )
@@ -380,7 +379,7 @@ mod tests {
         let content = files.values().next().unwrap();
         let json: Value = serde_json::from_str(content).unwrap();
         let servers = json["mcpServers"].as_object().unwrap();
-        assert!(servers.contains_key("ai-rules-generated-my-server"));
+        assert!(servers.contains_key("air-my-server"));
         assert!(!servers.contains_key("my-server"));
     }
 
@@ -406,7 +405,7 @@ mod tests {
         let servers = json["mcpServers"].as_object().unwrap();
 
         assert!(servers.contains_key("user-server"), "user server should be preserved");
-        assert!(servers.contains_key("ai-rules-generated-gen-server"), "generated server should be added");
+        assert!(servers.contains_key("air-gen-server"), "generated server should be added");
         assert_eq!(json["someOtherSetting"], true, "other settings should be preserved");
     }
 
@@ -418,7 +417,7 @@ mod tests {
         create_file(
             temp_dir.path(),
             ".claude.json",
-            r#"{"mcpServers":{"user-server":{"command":"mine"},"ai-rules-generated-old":{"command":"old"}}}"#,
+            r#"{"mcpServers":{"user-server":{"command":"mine"},"air-old":{"command":"old"}}}"#,
         );
 
         gen.clean_mcp(temp_dir.path()).unwrap();
@@ -428,7 +427,7 @@ mod tests {
         let servers = json["mcpServers"].as_object().unwrap();
 
         assert!(servers.contains_key("user-server"));
-        assert!(!servers.contains_key("ai-rules-generated-old"));
+        assert!(!servers.contains_key("air-old"));
     }
 
     #[test]

@@ -6,10 +6,12 @@ pub const INLINED_AGENTS_FILENAME: &str = "ai-rules-generated-AGENTS.md";
 pub const AGENTS_MD_FILENAME: &str = "AGENTS.md";
 pub const AI_RULE_CONFIG_FILENAME: &str = "ai-rules-config.yaml";
 pub const GENERATED_FILE_PREFIX: &str = "ai-rules-generated-";
+pub const GENERATED_MCP_SERVER_PREFIX: &str = "air-";
 pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
 
 pub const CLAUDE_OUTPUT_FILE: &str = "CLAUDE.md";
 pub const CLAUDE_GLOBAL_OUTPUT_FILE: &str = ".claude/CLAUDE.md";
+pub const CLAUDE_SETTINGS_JSON: &str = ".claude.json";
 pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
 
 pub const GEMINI_OUTPUT_FILE: &str = "GEMINI.md";

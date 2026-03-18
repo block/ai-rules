@@ -49,10 +49,14 @@ pub fn run_generate(
 
     generation_result.display(current_dir);
 
-    if args.gitignore && !args.global {
+    if args.global {
+        if args.gitignore {
+            eprintln!("Warning: --gitignore is not applicable in global mode, skipping");
+        }
+    } else if args.gitignore {
         operations::update_project_gitignore(current_dir, &registry, nested_depth)?;
         print_success("Updated .gitignore with generated file patterns");
-    } else if !args.global {
+    } else {
         operations::remove_gitignore_section(current_dir, &registry)?;
     }
 
@@ -1035,5 +1039,30 @@ Optional content"#,
         assert!(result.is_ok());
 
         assert_file_not_exists(temp_dir.path(), ".gitignore");
+    }
+
+    #[test]
+    fn test_run_generate_global_all_agents_writes_global_paths() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: None,
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+            global: true,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(temp_dir.path(), ".claude/CLAUDE.md");
+        assert_file_exists(temp_dir.path(), ".gemini/GEMINI.md");
+        assert_file_exists(temp_dir.path(), ".codex/AGENTS.md");
+        assert_file_exists(temp_dir.path(), ".config/amp/AGENTS.md");
+
+        assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+        assert_file_not_exists(temp_dir.path(), "GEMINI.md");
     }
 }

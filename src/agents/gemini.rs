@@ -3,7 +3,7 @@ use crate::agents::rule_generator::AgentRuleGenerator;
 use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
-use crate::constants::GENERATED_FILE_PREFIX;
+use crate::constants::GENERATED_MCP_SERVER_PREFIX;
 use crate::models::SourceFile;
 use crate::operations::mcp_reader::read_mcp_config;
 use crate::utils::file_utils::{
@@ -121,7 +121,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         // Apply Gemini-specific transformations
         self.transform_mcp_servers(&mut source_servers);
 
-        // Prefix source server names with GENERATED_FILE_PREFIX
+        // Prefix source server names with GENERATED_MCP_SERVER_PREFIX
         let prefixed_servers = self.prefix_server_names(&source_servers);
 
         // 2. Read existing target config (.gemini/settings.json)
@@ -143,7 +143,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
         // Keep only user-configured servers (those without the prefix)
         let mut merged_servers: Map<String, Value> = existing_servers
             .into_iter()
-            .filter(|(name, _)| !name.starts_with(GENERATED_FILE_PREFIX))
+            .filter(|(name, _)| !name.starts_with(GENERATED_MCP_SERVER_PREFIX))
             .collect();
 
         // Add new prefixed servers
@@ -174,7 +174,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
                 // Only remove servers with the generated prefix, preserve user servers
                 if let Some(mcp_servers) = obj.get_mut("mcpServers") {
                     if let Some(servers_obj) = mcp_servers.as_object_mut() {
-                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_FILE_PREFIX));
+                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_MCP_SERVER_PREFIX));
                     }
                 }
 
@@ -202,7 +202,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
                     None => true,
                     Some(val) => val
                         .as_object()
-                        .is_none_or(|o| !o.keys().any(|k| k.starts_with(GENERATED_FILE_PREFIX))),
+                        .is_none_or(|o| !o.keys().any(|k| k.starts_with(GENERATED_MCP_SERVER_PREFIX))),
                 };
                 return Ok(has_no_generated);
             }
@@ -229,7 +229,7 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
             .and_then(|v| v.as_object())
             .map(|obj| {
                 obj.iter()
-                    .filter(|(name, _)| name.starts_with(GENERATED_FILE_PREFIX))
+                    .filter(|(name, _)| name.starts_with(GENERATED_MCP_SERVER_PREFIX))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect()
             })
@@ -249,13 +249,13 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
 }
 
 impl GeminiMcpGenerator {
-    /// Prefixes all server names with GENERATED_FILE_PREFIX
+    /// Prefixes all server names with GENERATED_MCP_SERVER_PREFIX
     fn prefix_server_names(&self, servers: &Value) -> Value {
         if let Some(servers_obj) = servers.as_object() {
             let prefixed: Map<String, Value> = servers_obj
                 .iter()
                 .map(|(name, config)| {
-                    let prefixed_name = format!("{}{}", GENERATED_FILE_PREFIX, name);
+                    let prefixed_name = format!("{}{}", GENERATED_MCP_SERVER_PREFIX, name);
                     (prefixed_name, config.clone())
                 })
                 .collect();
@@ -378,7 +378,7 @@ mod tests {
         // Create target config that is already transformed AND prefixed
         let target_config = r#"{
   "mcpServers": {
-    "ai-rules-generated-jira": {
+    "air-jira": {
       "url": "https://mcp.atlassian.com/v1/sse"
     }
   }
@@ -419,7 +419,7 @@ mod tests {
         let existing_target = r#"{
   "mcpServers": {
     "user-server": {"url": "http://user.example.com"},
-    "ai-rules-generated-old-server": {"url": "http://old.example.com"}
+    "air-old-server": {"url": "http://old.example.com"}
   },
   "otherSetting": "preserved",
   "nestedSetting": {
@@ -450,10 +450,10 @@ mod tests {
         assert!(mcp_servers.contains_key("user-server"));
 
         // Old generated server should be removed
-        assert!(!mcp_servers.contains_key("ai-rules-generated-old-server"));
+        assert!(!mcp_servers.contains_key("air-old-server"));
 
         // New server should be added with prefix
-        assert!(mcp_servers.contains_key("ai-rules-generated-new-server"));
+        assert!(mcp_servers.contains_key("air-new-server"));
     }
 
     #[test]
@@ -479,7 +479,7 @@ mod tests {
         let target_config = r#"{
   "mcpServers": {
     "user-server": {"url": "http://user.example.com"},
-    "ai-rules-generated-test": {"url": "http://generated.example.com"}
+    "air-test": {"url": "http://generated.example.com"}
   },
   "otherSetting": "preserved",
   "anotherSetting": 42
@@ -497,7 +497,7 @@ mod tests {
         // mcpServers should still exist with user servers
         let mcp_servers = json.get("mcpServers").unwrap().as_object().unwrap();
         assert!(mcp_servers.contains_key("user-server"));
-        assert!(!mcp_servers.contains_key("ai-rules-generated-test"));
+        assert!(!mcp_servers.contains_key("air-test"));
         // Other settings should be preserved
         assert_eq!(json.get("otherSetting").unwrap(), "preserved");
         assert_eq!(json.get("anotherSetting").unwrap(), 42);
@@ -556,7 +556,7 @@ mod tests {
         // Target with generated (prefixed) mcpServers
         let target_config = r#"{
   "mcpServers": {
-    "ai-rules-generated-test": {"url": "http://example.com"}
+    "air-test": {"url": "http://example.com"}
   }
 }"#;
         create_file(temp_dir.path(), ".gemini/settings.json", target_config);
@@ -625,13 +625,13 @@ mod tests {
         assert!(!prefixed_obj.contains_key("server2"));
 
         // Prefixed names should exist
-        assert!(prefixed_obj.contains_key("ai-rules-generated-server1"));
-        assert!(prefixed_obj.contains_key("ai-rules-generated-server2"));
+        assert!(prefixed_obj.contains_key("air-server1"));
+        assert!(prefixed_obj.contains_key("air-server2"));
 
         // Values should be preserved
         assert_eq!(
             prefixed_obj
-                .get("ai-rules-generated-server1")
+                .get("air-server1")
                 .unwrap()
                 .get("command")
                 .unwrap(),
