@@ -21,7 +21,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-
 pub struct ClaudeGenerator {
     name: String,
     output_filename: String,
@@ -183,7 +182,13 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
             Ok(Some(c)) => c,
             _ => return files,
         };
-        let source_json: Value = serde_json::from_str(&source_mcp_content).unwrap_or(json!({}));
+        let source_json: Value = match serde_json::from_str(&source_mcp_content) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Warning: failed to parse MCP config: {e}");
+                return files;
+            }
+        };
         let source_servers = source_json.get("mcpServers").unwrap_or(&json!({})).clone();
         let prefixed_servers = self.prefix_server_names(&source_servers);
 
@@ -463,6 +468,18 @@ mod tests {
         create_file(temp_dir.path(), ".claude.json", r#"{"mcpServers":{}}"#);
 
         assert!(!gen.check_mcp(temp_dir.path()).unwrap());
+    }
+
+    #[test]
+    fn test_global_mcp_generates_nothing_when_source_is_invalid_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let gen = ClaudeGlobalMcpGenerator;
+
+        create_file(temp_dir.path(), "ai-rules/mcp.json", "not valid json {{{");
+
+        let files = gen.generate_mcp(temp_dir.path());
+
+        assert!(files.is_empty());
     }
 
     #[test]

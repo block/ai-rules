@@ -148,10 +148,10 @@ fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
     let content = fs::read_to_string(&mcp_source_path)
         .with_context(|| format!("Failed to read {}", mcp_source_path.display()))?;
 
-    let mut json: Value = serde_json::from_str(&content)
+    let _: McpConfig = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
-    let _: McpConfig = serde_json::from_value(json.clone())
+    let mut json: Value = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
     let dot_env = load_dot_env(current_dir);
