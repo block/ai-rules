@@ -7,6 +7,10 @@ use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::{Path, PathBuf};
 
+// Re-export DirectoryFilter so existing callers don't need to change their imports
+pub use crate::utils::dir_filter::DirectoryFilter;
+use crate::utils::dir_filter::TraversalDecision;
+
 /// Ensures a string ends with a newline character.
 /// This is a helper to maintain POSIX compliance for generated files.
 pub fn ensure_trailing_newline(content: impl Into<String>) -> String {
@@ -159,6 +163,7 @@ pub fn traverse_project_directories<F>(
     current_dir: &Path,
     max_depth: usize,
     current_depth: usize,
+    filter: &DirectoryFilter,
     callback: &mut F,
 ) -> Result<()>
 where
@@ -169,8 +174,29 @@ where
         return Ok(());
     }
 
+    traverse_children(
+        current_dir,
+        max_depth,
+        current_depth,
+        filter,
+        false,
+        callback,
+    )
+}
+
+fn traverse_children<F>(
+    current_dir: &Path,
+    max_depth: usize,
+    current_depth: usize,
+    filter: &DirectoryFilter,
+    parent_ignored: bool,
+    callback: &mut F,
+) -> Result<()>
+where
+    F: FnMut(&Path) -> Result<()>,
+{
     // Collect and sort directories for deterministic traversal order
-    let mut dirs = Vec::new();
+    let mut dirs: Vec<(PathBuf, TraversalDecision)> = Vec::new();
     for entry in fs::read_dir(current_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -181,17 +207,57 @@ where
                 .and_then(|name| name.to_str())
                 .unwrap_or("");
 
-            if should_traverse_directory(dir_name) {
-                dirs.push(path);
+            let decision = filter.traversal_decision(&path, dir_name, parent_ignored);
+            if decision != TraversalDecision::Skip {
+                dirs.push((path, decision));
             }
         }
     }
 
     // Sort directories alphabetically for consistent order
-    dirs.sort();
+    dirs.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-    for dir in dirs {
-        traverse_project_directories(&dir, max_depth, current_depth + 1, callback)?;
+    for (dir, decision) in dirs {
+        if current_depth + 1 >= max_depth {
+            if decision == TraversalDecision::Enter {
+                callback(&dir)?;
+            }
+            continue;
+        }
+
+        // Only clone/rebuild the filter when a child .gitignore exists
+        let child_filter_owned;
+        let effective_filter = if let Some(cf) = filter.with_child_gitignore(&dir) {
+            child_filter_owned = cf;
+            &child_filter_owned
+        } else {
+            filter
+        };
+
+        match decision {
+            TraversalDecision::Enter => {
+                callback(&dir)?;
+                traverse_children(
+                    &dir,
+                    max_depth,
+                    current_depth + 1,
+                    effective_filter,
+                    false,
+                    callback,
+                )?;
+            }
+            TraversalDecision::SkipCallbackButRecurse => {
+                traverse_children(
+                    &dir,
+                    max_depth,
+                    current_depth + 1,
+                    effective_filter,
+                    true,
+                    callback,
+                )?;
+            }
+            TraversalDecision::Skip => unreachable!(),
+        }
     }
 
     Ok(())
@@ -225,32 +291,6 @@ pub fn check_directory_exact_match(
     }
 
     Ok(true)
-}
-
-const EXCLUDED_DIRECTORIES: &[&str] = &[
-    "ai-rules",
-    "target",
-    "build",
-    "dist",
-    "out",
-    "bin",
-    "obj",
-    "node_modules",
-    "vendor",
-    "packages",
-    "__pycache__",
-    ".pytest_cache",
-    ".cache",
-    ".vscode",
-    ".idea",
-    ".vs",
-    "tmp",
-    "temp",
-    "logs",
-];
-
-fn should_traverse_directory(dir_name: &str) -> bool {
-    !dir_name.starts_with('.') && !EXCLUDED_DIRECTORIES.contains(&dir_name)
 }
 
 #[cfg(test)]
@@ -378,17 +418,6 @@ mod tests {
     }
 
     #[test]
-    fn test_should_traverse_directory() {
-        assert!(should_traverse_directory("src"));
-        assert!(should_traverse_directory("utils"));
-        assert!(!should_traverse_directory(".git"));
-        assert!(!should_traverse_directory(".hidden"));
-        assert!(!should_traverse_directory("target"));
-        assert!(!should_traverse_directory("node_modules"));
-        assert!(!should_traverse_directory("build"));
-    }
-
-    #[test]
     fn test_traverse_project_directories() {
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -404,7 +433,8 @@ mod tests {
             Ok(())
         };
 
-        traverse_project_directories(temp_path, 2, 0, &mut callback).unwrap();
+        traverse_project_directories(temp_path, 2, 0, &DirectoryFilter::Hardcoded, &mut callback)
+            .unwrap();
 
         assert!(visited.contains(&temp_path.to_path_buf()));
         assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
@@ -425,12 +455,20 @@ mod tests {
     }
 
     fn traverse_and_collect(root_path: &Path, max_depth: usize) -> Vec<PathBuf> {
+        traverse_and_collect_with_filter(root_path, max_depth, &DirectoryFilter::Hardcoded)
+    }
+
+    fn traverse_and_collect_with_filter(
+        root_path: &Path,
+        max_depth: usize,
+        filter: &DirectoryFilter,
+    ) -> Vec<PathBuf> {
         let mut visited = Vec::new();
         let mut callback = |path: &Path| -> Result<()> {
             visited.push(path.to_path_buf());
             Ok(())
         };
-        traverse_project_directories(root_path, max_depth, 0, &mut callback).unwrap();
+        traverse_project_directories(root_path, max_depth, 0, filter, &mut callback).unwrap();
         visited
     }
 
@@ -622,5 +660,267 @@ mod tests {
 
         let result = find_files_by_extension(temp_path, "md");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_gitignore_filter_excludes_ignored_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+        fs::create_dir_all(temp_path.join("target")).unwrap();
+        fs::create_dir_all(temp_path.join("tests")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "tests"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "target"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_always_excludes_hidden() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore that does NOT mention .git
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join(".git")).unwrap();
+        fs::create_dir_all(temp_path.join(".hidden")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == ".git"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == ".hidden"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_always_excludes_ai_rules() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore that does NOT mention ai-rules
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+        fs::create_dir_all(temp_path.join("ai-rules")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "ai-rules"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+    }
+
+    #[test]
+    fn test_gitignore_filter_allows_non_ignored() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // .gitignore only ignores "dist/"
+        fs::write(temp_path.join(".gitignore"), "dist/\n").unwrap();
+        // "node_modules" is in the hardcoded list but NOT in .gitignore
+        fs::create_dir_all(temp_path.join("node_modules")).unwrap();
+        fs::create_dir_all(temp_path.join("vendor")).unwrap();
+        fs::create_dir_all(temp_path.join("dist")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        // node_modules and vendor should be traversed (not in .gitignore)
+        assert!(visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "node_modules"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "vendor"));
+        // dist should be excluded (in .gitignore)
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "dist"));
+    }
+
+    #[test]
+    fn test_fallback_to_hardcoded_when_no_gitignore() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // No .gitignore file
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+        fs::create_dir_all(temp_path.join("target")).unwrap();
+        fs::create_dir_all(temp_path.join("node_modules")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "target"));
+        assert!(!visited
+            .iter()
+            .any(|p| p.file_name().unwrap() == "node_modules"));
+    }
+
+    #[test]
+    fn test_negation_pattern_build_with_important() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // build/ is ignored, but build/important/ is negated
+        fs::write(temp_path.join(".gitignore"), "build/\n!build/important/\n").unwrap();
+        fs::create_dir_all(temp_path.join("build/important")).unwrap();
+        fs::create_dir_all(temp_path.join("build/other")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+
+        // build/ should be SkipCallbackButRecurse because it has a negated child
+        assert_eq!(
+            filter.traversal_decision(&temp_path.join("build"), "build", false),
+            TraversalDecision::SkipCallbackButRecurse
+        );
+
+        // src/ should be Enter (not ignored)
+        assert_eq!(
+            filter.traversal_decision(&temp_path.join("src"), "src", false),
+            TraversalDecision::Enter
+        );
+
+        // Full traversal: build/ should NOT appear in visited, but build/important/ SHOULD
+        let visited = traverse_and_collect_with_filter(temp_path, 3, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(
+            visited
+                .iter()
+                .any(|p| p.file_name().unwrap() == "important"),
+            "build/important/ should be visited due to negation pattern"
+        );
+        assert!(
+            !visited.iter().any(|p| p == &temp_path.join("build")),
+            "build/ itself should NOT be in visited (callback skipped)"
+        );
+        assert!(
+            !visited.iter().any(|p| p.file_name().unwrap() == "other"),
+            "build/other/ should not be visited (still ignored)"
+        );
+    }
+
+    #[test]
+    fn test_nested_gitignore_excludes_subdirectory_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // Root .gitignore ignores nothing relevant
+        fs::write(temp_path.join(".gitignore"), "target/\n").unwrap();
+
+        // Create subdirectory with its own .gitignore
+        fs::create_dir_all(temp_path.join("packages/frontend/dist")).unwrap();
+        fs::create_dir_all(temp_path.join("packages/frontend/src")).unwrap();
+        fs::write(temp_path.join("packages/frontend/.gitignore"), "dist/\n").unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 4, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "frontend"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(
+            !visited.iter().any(|p| p.file_name().unwrap() == "dist"),
+            "dist/ should be excluded by nested .gitignore"
+        );
+    }
+
+    #[test]
+    fn test_nested_gitignore_with_negation() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // Root .gitignore
+        fs::write(temp_path.join(".gitignore"), "").unwrap();
+
+        // Subdirectory with gitignore that has negation
+        fs::create_dir_all(temp_path.join("app/generated/keep")).unwrap();
+        fs::create_dir_all(temp_path.join("app/generated/throwaway")).unwrap();
+        fs::create_dir_all(temp_path.join("app/src")).unwrap();
+        fs::write(
+            temp_path.join("app/.gitignore"),
+            "generated/\n!generated/keep/\n",
+        )
+        .unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+        let visited = traverse_and_collect_with_filter(temp_path, 4, &filter);
+
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "app"));
+        assert!(visited.iter().any(|p| p.file_name().unwrap() == "src"));
+        assert!(
+            visited.iter().any(|p| p.file_name().unwrap() == "keep"),
+            "generated/keep/ should be visited due to negation in nested .gitignore"
+        );
+        assert!(
+            !visited
+                .iter()
+                .any(|p| p == &temp_path.join("app/generated")),
+            "generated/ itself should not be in visited (callback skipped)"
+        );
+        assert!(
+            !visited
+                .iter()
+                .any(|p| p.file_name().unwrap() == "throwaway"),
+            "generated/throwaway/ should not be visited (still ignored)"
+        );
+    }
+
+    #[test]
+    fn test_ignored_dir_without_negation_fully_skipped() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // build/ is ignored with NO negation patterns
+        fs::write(temp_path.join(".gitignore"), "build/\n").unwrap();
+        fs::create_dir_all(temp_path.join("build/sub")).unwrap();
+        fs::create_dir_all(temp_path.join("src")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+
+        // build/ should be fully skipped (no negation)
+        assert_eq!(
+            filter.traversal_decision(&temp_path.join("build"), "build", false),
+            TraversalDecision::Skip
+        );
+
+        let visited = traverse_and_collect_with_filter(temp_path, 3, &filter);
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "build"));
+        assert!(!visited.iter().any(|p| p.file_name().unwrap() == "sub"));
+    }
+
+    #[test]
+    fn test_negation_at_max_depth_boundary() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // build/ ignored, build/important/ negated — important is at depth 2
+        fs::write(temp_path.join(".gitignore"), "build/\n!build/important/\n").unwrap();
+        fs::create_dir_all(temp_path.join("build/important")).unwrap();
+
+        let filter = DirectoryFilter::from_project_root(temp_path);
+
+        // max_depth=1: root(0) can recurse, but build/(1) is SkipCallbackButRecurse
+        // at the depth boundary — no further recursion, so important/ is unreachable
+        let visited = traverse_and_collect_with_filter(temp_path, 1, &filter);
+        assert!(
+            !visited
+                .iter()
+                .any(|p| p.file_name().unwrap() == "important"),
+            "negated child beyond max_depth is not visited (depth limit takes precedence)"
+        );
+
+        // max_depth=2: build/(1) can recurse, important/(2) is Enter at the boundary
+        let visited = traverse_and_collect_with_filter(temp_path, 2, &filter);
+        assert!(
+            visited
+                .iter()
+                .any(|p| p.file_name().unwrap() == "important"),
+            "negated child within max_depth should be visited"
+        );
     }
 }

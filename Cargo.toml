@@ -19,6 +19,7 @@ serde_yaml = "0.9"
 cliclack = "0.3.6"
 regex = "1.10"
 which = "8.0.0"
+ignore = "0.4"
 
 [dev-dependencies]
 tempfile = "3.0"
