@@ -72,6 +72,20 @@ impl AgentToolRegistry {
     pub fn get_all_tool_names(&self) -> Vec<String> {
         self.tools.keys().map(|s| s.to_string()).collect()
     }
+
+    pub fn filter_valid_agents(&self, agents: Vec<String>) -> Vec<String> {
+        agents
+            .into_iter()
+            .filter(|agent| {
+                if self.get_tool(agent).is_none() {
+                    eprintln!("Warning: unrecognised agent '{agent}', skipping");
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -118,6 +132,35 @@ mod tests {
             patterns.iter().any(|p| p == CLAUDE_MCP_JSON),
             "project claude MCP should use {CLAUDE_MCP_JSON}"
         );
+    }
+
+    #[test]
+    fn test_filter_valid_agents_empty_input() {
+        let registry = AgentToolRegistry::new(false);
+        let result = registry.filter_valid_agents(vec![]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_filter_valid_agents_keeps_known_agents() {
+        let registry = AgentToolRegistry::new(false);
+        let result = registry.filter_valid_agents(vec!["claude".to_string(), "cursor".to_string()]);
+        assert_eq!(result, vec!["claude".to_string(), "cursor".to_string()]);
+    }
+
+    #[test]
+    fn test_filter_valid_agents_removes_unknown_agents() {
+        let registry = AgentToolRegistry::new(false);
+        let result =
+            registry.filter_valid_agents(vec!["claude".to_string(), "nonexistent".to_string()]);
+        assert_eq!(result, vec!["claude".to_string()]);
+    }
+
+    #[test]
+    fn test_filter_valid_agents_returns_empty_for_all_unknown() {
+        let registry = AgentToolRegistry::new(false);
+        let result = registry.filter_valid_agents(vec!["unknown1".to_string(), "unknown2".to_string()]);
+        assert!(result.is_empty());
     }
 
     #[test]

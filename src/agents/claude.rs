@@ -194,8 +194,19 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
 
         let target_path = current_dir.join(CLAUDE_SETTINGS_JSON);
         let mut target_json = if target_path.exists() {
-            let content = fs::read_to_string(&target_path).unwrap_or_else(|_| "{}".to_string());
-            serde_json::from_str(&content).unwrap_or(json!({}))
+            match fs::read_to_string(&target_path) {
+                Ok(content) => serde_json::from_str(&content).unwrap_or_else(|e| {
+                    eprintln!("Warning: failed to parse {}: {e}", target_path.display());
+                    json!({})
+                }),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: failed to read {}, skipping MCP generation: {e}",
+                        target_path.display()
+                    );
+                    return files;
+                }
+            }
         } else {
             json!({})
         };
@@ -219,7 +230,8 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
 
         target_json["mcpServers"] = Value::Object(merged_servers);
 
-        if let Ok(content) = serde_json::to_string_pretty(&target_json) {
+        if let Ok(mut content) = serde_json::to_string_pretty(&target_json) {
+            content.push('\n');
             files.insert(target_path, content);
         }
 
@@ -232,14 +244,14 @@ impl McpGeneratorTrait for ClaudeGlobalMcpGenerator {
             let content = fs::read_to_string(&target_path)?;
             let mut json: Value = serde_json::from_str(&content)?;
 
-            if let Some(obj) = json.as_object_mut() {
-                if let Some(mcp_servers) = obj.get_mut("mcpServers") {
-                    if let Some(servers_obj) = mcp_servers.as_object_mut() {
-                        servers_obj.retain(|name, _| !name.starts_with(GENERATED_MCP_SERVER_PREFIX));
-                    }
-                }
-                fs::write(&target_path, serde_json::to_string_pretty(&json)?)?;
+            if let Some(servers_obj) = json
+                .get_mut("mcpServers")
+                .and_then(|v| v.as_object_mut())
+            {
+                servers_obj.retain(|name, _| !name.starts_with(GENERATED_MCP_SERVER_PREFIX));
             }
+
+            fs::write(&target_path, serde_json::to_string_pretty(&json)?)?;
         }
         Ok(())
     }

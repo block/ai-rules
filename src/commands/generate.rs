@@ -1,5 +1,6 @@
 use crate::agents::AgentToolRegistry;
 use crate::cli::ResolvedGenerateArgs;
+use crate::operations::mcp_reader::read_default_agents_from_env;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::operations::{self, GenerationResult};
 use crate::utils::file_utils::{traverse_project_directories, write_directory_files};
@@ -32,7 +33,12 @@ pub fn run_generate(
         AgentToolRegistry::new(use_claude_skills)
     };
 
-    let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
+    let agents = match args.agents {
+        Some(specified) => registry.filter_valid_agents(specified),
+        None => read_default_agents_from_env(current_dir)
+            .map(|agents| registry.filter_valid_agents(agents))
+            .unwrap_or_else(|| registry.get_all_tool_names()),
+    };
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
 
     let mut generation_result = GenerationResult::default();
@@ -1063,6 +1069,47 @@ Optional content"#,
         assert_file_exists(temp_dir.path(), ".config/amp/AGENTS.md");
 
         assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+        assert_file_not_exists(temp_dir.path(), "GEMINI.md");
+    }
+
+    #[test]
+    fn test_run_generate_uses_ai_rules_agents_from_env_file() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_AGENTS=claude\n");
+
+        let args = ResolvedGenerateArgs {
+            agents: None,
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+            global: false,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
+        assert_file_not_exists(temp_dir.path(), "GEMINI.md");
+        assert_file_not_exists(temp_dir.path(), "AGENTS.md");
+    }
+
+    #[test]
+    fn test_run_generate_cli_agents_override_env_file() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_AGENTS=gemini\n");
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+            global: false,
+        };
+        let result = run_generate(temp_dir.path(), args, false);
+        assert!(result.is_ok());
+
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
         assert_file_not_exists(temp_dir.path(), "GEMINI.md");
     }
 }

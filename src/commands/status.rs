@@ -3,6 +3,7 @@ use crate::cli::ResolvedStatusArgs;
 use crate::models::SourceFile;
 use crate::operations;
 use crate::operations::body_generator::generated_body_file_dir;
+use crate::operations::mcp_reader::read_default_agents_from_env;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::utils::file_utils;
 use anyhow::Result;
@@ -53,7 +54,12 @@ pub fn check_project_status(
     use_claude_skills: bool,
 ) -> Result<ProjectStatus> {
     let registry = AgentToolRegistry::new(use_claude_skills);
-    let agents: Vec<String> = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
+    let agents: Vec<String> = match args.agents {
+        Some(specified) => registry.filter_valid_agents(specified),
+        None => read_default_agents_from_env(current_dir)
+            .map(|agents| registry.filter_valid_agents(agents))
+            .unwrap_or_else(|| registry.get_all_tool_names()),
+    };
 
     // Determine command agents - use command_agents if specified, otherwise fall back to agents
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());

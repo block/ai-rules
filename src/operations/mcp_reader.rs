@@ -1,4 +1,4 @@
-use crate::constants::{AI_RULE_SOURCE_DIR, MCP_ENV_FILENAME, MCP_JSON, MCP_SERVERS_FIELD};
+use crate::constants::{AI_RULE_SOURCE_DIR, ENV_AGENTS_KEY, MCP_ENV_FILENAME, MCP_JSON, MCP_SERVERS_FIELD};
 use crate::utils::file_utils::ensure_trailing_newline;
 use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
@@ -69,6 +69,17 @@ fn load_dot_env(current_dir: &Path) -> HashMap<String, String> {
         }
     }
     vars
+}
+
+pub fn read_default_agents_from_env(current_dir: &Path) -> Option<Vec<String>> {
+    let dot_env = load_dot_env(current_dir);
+    dot_env.get(ENV_AGENTS_KEY).map(|value| {
+        value
+            .split(',')
+            .map(|a| a.trim().to_string())
+            .filter(|a| !a.is_empty())
+            .collect()
+    })
 }
 
 fn strip_surrounding_quotes(s: &str) -> &str {
@@ -148,10 +159,10 @@ fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
     let content = fs::read_to_string(&mcp_source_path)
         .with_context(|| format!("Failed to read {}", mcp_source_path.display()))?;
 
-    let _: McpConfig = serde_json::from_str(&content)
+    let mut json: Value = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
-    let mut json: Value = serde_json::from_str(&content)
+    let _: McpConfig = serde_json::from_value(json.clone())
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
     let dot_env = load_dot_env(current_dir);
@@ -622,5 +633,40 @@ mod tests {
 
         let result = read_mcp_config(temp_dir.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_default_agents_from_env_returns_agents() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_AGENTS=claude,cursor\n");
+
+        let result = read_default_agents_from_env(temp_dir.path());
+        assert_eq!(result, Some(vec!["claude".to_string(), "cursor".to_string()]));
+    }
+
+    #[test]
+    fn test_read_default_agents_from_env_trims_whitespace() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_AGENTS= claude , cursor \n");
+
+        let result = read_default_agents_from_env(temp_dir.path());
+        assert_eq!(result, Some(vec!["claude".to_string(), "cursor".to_string()]));
+    }
+
+    #[test]
+    fn test_read_default_agents_from_env_returns_none_when_key_absent() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/.env", "OTHER_KEY=value\n");
+
+        let result = read_default_agents_from_env(temp_dir.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_read_default_agents_from_env_returns_none_when_no_env_file() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let result = read_default_agents_from_env(temp_dir.path());
+        assert!(result.is_none());
     }
 }

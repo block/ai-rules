@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 const SUMMARY: &str = "Manage AI context rules across different AI coding agents";
 
+// Unix-only: relies on HOME which is not set on Windows
 fn home_dir() -> anyhow::Result<PathBuf> {
     let path = std::env::var_os("HOME")
         .map(PathBuf::from)
