@@ -9,7 +9,7 @@
 | **Cline** | `.clinerules/AGENTS.md` -> inlined file | `.clinerules/AGENTS.md` -> `../ai-rules/AGENTS.md` | - | |
 | **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Copilot** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
-| **Cursor** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | Set `use_cursor_rules: true` to keep legacy `.cursor/rules/*.mdc` output |
+| **Cursor** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | |
 | **Firebender** | `firebender.json` | `firebender.json` (references `ai-rules/AGENTS.md`) | Embedded in `firebender.json` | Supports overlay files |
 | **Gemini** | `GEMINI.md` -> inlined file | `GEMINI.md` -> `ai-rules/AGENTS.md` | Embedded in `.gemini/settings.json` | |
 | **Goose** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |

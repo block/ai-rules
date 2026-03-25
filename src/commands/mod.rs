@@ -72,7 +72,7 @@ mod tests {
             gitignore: true,
             nested_depth,
         };
-        let generate_result = run_generate(project_path, generate_args, false, false);
+        let generate_result = run_generate(project_path, generate_args, false);
         if let Err(e) = &generate_result {
             panic!("Generate failed with error: {e}");
         }
@@ -91,7 +91,7 @@ mod tests {
             command_agents: None,
             nested_depth,
         };
-        let status_result = check_project_status(project_path, status_args, false, false).unwrap();
+        let status_result = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_result.has_ai_rules);
         assert!(!status_result.body_files_out_of_sync);
         for in_sync in status_result.agent_statuses.values() {
@@ -108,8 +108,7 @@ mod tests {
             command_agents: None,
             nested_depth,
         };
-        let status_after_change =
-            check_project_status(project_path, status_args, false, false).unwrap();
+        let status_after_change = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_after_change.has_ai_rules);
         assert!(!status_after_change.body_files_out_of_sync);
 
@@ -127,7 +126,7 @@ mod tests {
         );
 
         // Clean - should remove all generated files
-        let clean_result = run_clean(project_path, nested_depth, false, false);
+        let clean_result = run_clean(project_path, nested_depth, false);
         assert!(clean_result.is_ok());
 
         assert_file_not_exists(project_path, "ai-rules/.generated-ai-rules");
@@ -154,7 +153,7 @@ mod tests {
             gitignore: true,
             nested_depth,
         };
-        let generate_result = run_generate(project_path, generate_args, false, false);
+        let generate_result = run_generate(project_path, generate_args, false);
         assert!(generate_result.is_ok());
 
         // Verify all agents created symlinks pointing to the correct target
@@ -179,8 +178,7 @@ mod tests {
             command_agents: None,
             nested_depth,
         };
-        let status_after_change =
-            check_project_status(project_path, status_args, false, false).unwrap();
+        let status_after_change = check_project_status(project_path, status_args, false).unwrap();
         assert!(status_after_change.has_ai_rules);
         assert!(!status_after_change.body_files_out_of_sync);
 

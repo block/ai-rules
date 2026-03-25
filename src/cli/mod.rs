@@ -28,41 +28,22 @@ pub fn run_cli() -> anyhow::Result<()> {
         .as_ref()
         .and_then(|c| c.use_claude_skills)
         .unwrap_or(false);
-    let use_cursor_rules = config
-        .as_ref()
-        .and_then(|c| c.use_cursor_rules)
-        .unwrap_or(false);
 
     match cli.command {
         Some(Commands::Init(init_args)) => run_init(&current_dir, init_args),
         Some(Commands::Generate(args)) => {
             let final_args = args.with_config(config.as_ref());
-            run_generate(
-                &current_dir,
-                final_args,
-                use_claude_skills,
-                use_cursor_rules,
-            )
+            run_generate(&current_dir, final_args, use_claude_skills)
         }
         Some(Commands::Status(args)) => {
             let final_args = args.with_config(config.as_ref());
-            run_status(
-                &current_dir,
-                final_args,
-                use_claude_skills,
-                use_cursor_rules,
-            )
+            run_status(&current_dir, final_args, use_claude_skills)
         }
         Some(Commands::Clean(args)) => {
             let nested_depth = args.nested_depth_args.with_config(config.as_ref());
-            run_clean(
-                &current_dir,
-                nested_depth,
-                use_claude_skills,
-                use_cursor_rules,
-            )
+            run_clean(&current_dir, nested_depth, use_claude_skills)
         }
-        Some(Commands::ListAgents) => run_list_agents(use_claude_skills, use_cursor_rules),
+        Some(Commands::ListAgents) => run_list_agents(use_claude_skills),
         None => {
             // If no command is provided and --summary is not used, show help
             use clap::CommandFactory;

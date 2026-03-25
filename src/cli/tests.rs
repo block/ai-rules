@@ -12,7 +12,6 @@ fn test_generate_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {
@@ -38,7 +37,6 @@ fn test_generate_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {
@@ -80,7 +78,6 @@ fn test_generate_args_with_config_partial_config() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {
@@ -106,7 +103,6 @@ fn test_nested_depth_args_with_config() {
         no_gitignore: None,
         nested_depth: Some(4),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args_with_cli = NestedDepthArgs {
@@ -130,7 +126,6 @@ fn test_nested_depth_explicit_zero_overrides_config() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = NestedDepthArgs {
@@ -149,7 +144,6 @@ fn test_status_args_with_config_cli_priority() {
         no_gitignore: None,
         nested_depth: Some(5),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = StatusArgs {
@@ -174,7 +168,6 @@ fn test_status_args_with_config_uses_config_when_cli_missing() {
         no_gitignore: None,
         nested_depth: Some(3),
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = StatusArgs {
@@ -210,7 +203,6 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
         no_gitignore: Some(true),
         nested_depth: None,
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {
@@ -234,7 +226,6 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {
@@ -258,7 +249,6 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
         no_gitignore: None,
         nested_depth: None,
         use_claude_skills: None,
-        use_cursor_rules: None,
     };
 
     let args = GenerateArgs {

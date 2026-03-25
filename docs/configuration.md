@@ -11,8 +11,6 @@ agents: [claude, cursor, cline] # Generate rules only for these agents
 command_agents: [claude, amp]   # Generate commands for these agents (defaults to agents list if not specified)
 nested_depth: 2 # Search 2 levels deep for ai-rules/ folders
 gitignore: true # Ignore the generated rules in git
-# Optional: keep legacy Cursor `.cursor/rules/*.mdc` output instead of `AGENTS.md`
-# use_cursor_rules: true
 ```
 
 ## Configuration Precedence
@@ -35,12 +33,4 @@ Experimental toggle to test Claude Code's skills feature. When enabled, rules wi
 
 See [Commands and Skills](commands-and-skills.md) for more details on skills.
 
-### Cursor Legacy Rules Mode
-
-```yaml
-use_cursor_rules: true  # Default: false
-```
-
-Cursor now uses `AGENTS.md` by default in standard mode so it shares the same generated content path as other `AGENTS.md`-based agents. Enable `use_cursor_rules` to opt out and keep the legacy `.cursor/rules/*.mdc` output.
-
-This opt-out is useful if you still rely on Cursor-specific `.mdc` metadata such as `fileMatching`/`globs`.
+Cursor uses `AGENTS.md` in standard mode so it shares the same generated content path as other `AGENTS.md`-based agents.

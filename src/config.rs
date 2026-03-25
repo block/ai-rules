@@ -12,8 +12,6 @@ pub struct Config {
     pub no_gitignore: Option<bool>,
     pub nested_depth: Option<usize>,
     pub use_claude_skills: Option<bool>,
-    #[serde(alias = "useCursorRules", alias = "use_cursor_rule")]
-    pub use_cursor_rules: Option<bool>,
 }
 
 pub fn load_config(current_dir: &Path) -> Result<Option<Config>> {
@@ -174,70 +172,6 @@ agents: ["claude"]
         let config = result.unwrap();
 
         assert!(config.use_claude_skills.is_none());
-    }
-
-    #[test]
-    fn test_load_config_with_use_cursor_rules() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["cursor"]
-use_cursor_rules: true
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert_eq!(config.agents, Some(vec!["cursor".to_string()]));
-        assert_eq!(config.use_cursor_rules, Some(true));
-    }
-
-    #[test]
-    fn test_load_config_with_use_cursor_rules_camel_case_alias() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["cursor"]
-useCursorRules: true
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert_eq!(config.use_cursor_rules, Some(true));
-    }
-
-    #[test]
-    fn test_load_config_with_use_cursor_rules_singular_alias() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["cursor"]
-use_cursor_rule: true
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert_eq!(config.use_cursor_rules, Some(true));
-    }
-
-    #[test]
-    fn test_load_config_without_use_cursor_rules_defaults_to_none() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["cursor"]
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert!(config.use_cursor_rules.is_none());
     }
 
     #[test]

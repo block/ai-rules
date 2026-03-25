@@ -1,4 +1,3 @@
 agents: ["claude", "cursor", "firebender", "goose", "amp", "cline", "roo", "kilocode"]
 gitignore: true
 nested_depth: 2
-use_cursor_rules: false

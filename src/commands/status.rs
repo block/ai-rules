@@ -31,7 +31,6 @@ pub fn run_status(
     current_dir: &Path,
     args: ResolvedStatusArgs,
     use_claude_skills: bool,
-    use_cursor_rules: bool,
 ) -> Result<()> {
     println!(
         "🔍 AI Rules Status for agents: {}, nested_depth: {}",
@@ -42,7 +41,7 @@ pub fn run_status(
         args.nested_depth
     );
 
-    let status = check_project_status(current_dir, args, use_claude_skills, use_cursor_rules)?;
+    let status = check_project_status(current_dir, args, use_claude_skills)?;
     print_status_results(&status);
 
     Ok(())
@@ -52,9 +51,8 @@ pub fn check_project_status(
     current_dir: &Path,
     args: ResolvedStatusArgs,
     use_claude_skills: bool,
-    use_cursor_rules: bool,
 ) -> Result<ProjectStatus> {
-    let registry = AgentToolRegistry::new(use_claude_skills, use_cursor_rules);
+    let registry = AgentToolRegistry::new(use_claude_skills);
     let agents: Vec<String> = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
 
     // Determine command agents - use command_agents if specified, otherwise fall back to agents
@@ -289,7 +287,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -309,7 +307,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -330,7 +328,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -357,7 +355,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -380,7 +378,6 @@ Test rule content"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -397,7 +394,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -433,7 +430,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -466,7 +463,6 @@ Test rule content"#;
                 nested_depth,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -475,7 +471,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -488,7 +484,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: 1,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -513,7 +509,6 @@ Test rule content"#;
                 nested_depth: 1,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -522,7 +517,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: 1,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -549,7 +544,6 @@ Test rule content"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -558,7 +552,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -594,7 +588,6 @@ Test rule content"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
     }
@@ -616,7 +609,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -643,7 +636,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -669,7 +662,6 @@ Test rule content"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -678,7 +670,7 @@ Test rule content"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -712,7 +704,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
     }
@@ -740,7 +731,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -773,7 +764,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -788,7 +778,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -821,7 +811,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -839,7 +828,7 @@ Test command body"#;
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -876,7 +865,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -885,7 +873,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -918,7 +906,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         )
         .unwrap();
 
@@ -937,7 +924,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -968,7 +955,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -977,7 +963,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -1004,7 +990,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -1013,7 +998,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
@@ -1045,7 +1030,6 @@ Test command body"#;
                 nested_depth: NESTED_DEPTH,
             },
             false,
-            false,
         );
         assert!(generate_result.is_ok());
 
@@ -1057,7 +1041,7 @@ Test command body"#;
             command_agents: None,
             nested_depth: NESTED_DEPTH,
         };
-        let result = check_project_status(temp_dir.path(), args, false, false);
+        let result = check_project_status(temp_dir.path(), args, false);
         assert!(result.is_ok());
 
         let status = result.unwrap();
