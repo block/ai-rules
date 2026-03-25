@@ -26,7 +26,6 @@ monorepo/
 │   │   └── styling.md
 │   ├── CLAUDE.md                 # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 │   ├── AGENTS.md                 # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
-│   ├── .cursor/rules/            # Generated (*.mdc)
 │   └── src/
 │
 ├── backend/                      # Backend services
@@ -40,11 +39,12 @@ monorepo/
 │
 ├── CLAUDE.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 ├── AGENTS.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
-├── .cursor/rules/                # Root Cursor rules (generated *.mdc files)
 ├── .clinerules/                  # Root Cline rules (symlink)
 ├── .mcp.json                     # Root MCP config (generated)
 └── firebender.json               # Root Firebender config (generated)
 ```
+
+If you need Cursor's legacy `.cursor/rules/*.mdc` output instead, enable `use_cursor_rules: true` in `ai-rules/ai-rules-config.yaml`.
 
 ## Symlink Mode
 

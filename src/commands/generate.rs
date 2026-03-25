@@ -14,6 +14,7 @@ pub fn run_generate(
     current_dir: &Path,
     args: ResolvedGenerateArgs,
     use_claude_skills: bool,
+    use_cursor_rules: bool,
 ) -> Result<()> {
     println!(
         "Generating rules for agents: {}, nested_depth: {}, gitignore: {}",
@@ -24,7 +25,7 @@ pub fn run_generate(
         args.nested_depth,
         args.gitignore
     );
-    let registry = AgentToolRegistry::new(use_claude_skills);
+    let registry = AgentToolRegistry::new(use_claude_skills, use_cursor_rules);
     let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
 
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
@@ -172,7 +173,7 @@ Test rule content"#;
     fn test_run_generate_empty_project() {
         let temp_dir = TempDir::new().unwrap();
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false);
+        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), ".gitignore");
@@ -188,7 +189,7 @@ Test rule content"#;
 
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false);
+        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -201,7 +202,7 @@ Test rule content"#;
         );
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         assert_file_exists(temp_dir.path(), ".gitignore");
@@ -220,18 +221,6 @@ Test rule content"#;
 
         assert_file_content(
             temp_dir.path(),
-            ".cursor/rules/ai-rules-generated-test.mdc",
-            r#"---
-description: Test rule
-globs: **/*.ts
-alwaysApply: true
----
-
-Test rule content
-"#,
-        );
-        assert_file_content(
-            temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
             "Test rule content\n",
         );
@@ -239,10 +228,6 @@ Test rule content
         // Verify generated files have trailing newlines
         assert_file_has_trailing_newline(temp_dir.path(), "CLAUDE.md");
         assert_file_has_trailing_newline(temp_dir.path(), AGENTS_MD_FILENAME);
-        assert_file_has_trailing_newline(
-            temp_dir.path(),
-            ".cursor/rules/ai-rules-generated-test.mdc",
-        );
         assert_file_has_trailing_newline(
             temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
@@ -261,7 +246,7 @@ Test rule content
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -284,7 +269,7 @@ Test rule content
             gitignore: true,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -293,8 +278,8 @@ Test rule content
         );
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
-        assert_file_not_exists(temp_dir.path(), AGENTS_MD_FILENAME);
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
@@ -303,6 +288,26 @@ Test rule content
         assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
         let claude_content = std::fs::read_to_string(&claude_path).unwrap();
         assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+        let agents_path = temp_dir.path().join(AGENTS_MD_FILENAME);
+        assert!(agents_path.is_symlink(), "AGENTS.md should be a symlink");
+        let agents_content = std::fs::read_to_string(&agents_path).unwrap();
+        assert_eq!(agents_content, "# Test rule\n\nTest rule content\n");
+    }
+
+    #[test]
+    fn test_run_generate_cursor_legacy_opt_out() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["cursor".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: NESTED_DEPTH,
+        };
+        let result = run_generate(temp_dir.path(), args, false, true);
+        assert!(result.is_ok());
 
         assert_file_content(
             temp_dir.path(),
@@ -316,6 +321,7 @@ alwaysApply: true
 Test rule content
 "#,
         );
+        assert_file_not_exists(temp_dir.path(), AGENTS_MD_FILENAME);
     }
 
     #[test]
@@ -333,7 +339,7 @@ Test rule content
             TEST_RULE_CONTENT,
         );
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false);
+        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -341,7 +347,8 @@ Test rule content
             "project1/ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md",
         );
         assert_file_exists(temp_dir.path(), "project1/CLAUDE.md");
-        assert_file_exists(
+        assert_file_exists(temp_dir.path(), "project1/AGENTS.md");
+        assert_file_not_exists(
             temp_dir.path(),
             "project1/.cursor/rules/ai-rules-generated-rule1.mdc",
         );
@@ -351,7 +358,8 @@ Test rule content
             "project1/nested/project2/ai-rules/.generated-ai-rules/ai-rules-generated-rule2.md",
         );
         assert_file_exists(temp_dir.path(), "project1/nested/project2/CLAUDE.md");
-        assert_file_exists(
+        assert_file_exists(temp_dir.path(), "project1/nested/project2/AGENTS.md");
+        assert_file_not_exists(
             temp_dir.path(),
             "project1/nested/project2/.cursor/rules/ai-rules-generated-rule2.mdc",
         );
@@ -365,13 +373,13 @@ Test rule content
 
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false);
+        let result = run_generate(temp_dir.path(), GENERATE_ARGS, false, false);
         assert!(result.is_ok());
 
         // Check that gitignore contains patterns with ** prefix for subdirectory matching
         let gitignore_content =
             std::fs::read_to_string(temp_dir.path().join(".gitignore")).unwrap();
-        assert!(gitignore_content.contains("**/.cursor/rules/"));
+        assert!(!gitignore_content.contains("**/.cursor/rules/"));
         assert!(gitignore_content.contains("**/ai-rules/.generated-ai-rules"));
         assert!(gitignore_content.contains(&format!("**/{AGENTS_MD_FILENAME}")));
         assert!(gitignore_content.contains("**/CLAUDE.md"));
@@ -394,7 +402,7 @@ Test rule content
             gitignore: true,
             nested_depth: 0,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -436,7 +444,7 @@ Test rule content
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
@@ -460,7 +468,7 @@ Test rule content
     #[test]
     fn test_generate_files_symlink_mode() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
 
         create_file(
             temp_dir.path(),
@@ -504,7 +512,7 @@ Test rule content
     #[test]
     fn test_generate_files_symlink_mode_cleans_normal_files() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
 
         // First create normal files
         create_file(temp_dir.path(), "CLAUDE.md", "@.generated-ai-rules/old.md");
@@ -539,7 +547,7 @@ Test rule content
     #[test]
     fn test_generation_result_agent_listing_symlink_mode() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
 
         create_file(temp_dir.path(), "ai-rules/AGENTS.md", "# Pure content");
         let agents = vec!["claude".to_string(), "goose".to_string()];
@@ -570,7 +578,7 @@ Test rule content
     #[test]
     fn test_generation_result_agent_listing_normal_mode() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
 
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
         let agents = vec!["claude".to_string(), "cursor".to_string()];
@@ -594,18 +602,13 @@ Test rule content
         let cursor_files = &generation_result.files_by_agent["cursor"];
 
         assert_eq!(claude_files[0], temp_dir.path().join("CLAUDE.md"));
-        assert_eq!(
-            cursor_files[0],
-            temp_dir
-                .path()
-                .join(".cursor/rules/ai-rules-generated-test.mdc")
-        );
+        assert_eq!(cursor_files[0], temp_dir.path().join(AGENTS_MD_FILENAME));
     }
 
     #[test]
     fn test_generate_files_normal_mode_cleans_symlinks() {
         let temp_dir = TempDir::new().unwrap();
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
 
         create_file(temp_dir.path(), "ai-rules/AGENTS.md", "# Pure content");
         let agents = vec!["claude".to_string()];
@@ -676,7 +679,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        run_generate(temp_dir.path(), args.clone(), true).unwrap();
+        run_generate(temp_dir.path(), args.clone(), true, false).unwrap();
 
         assert_file_exists(
             temp_dir.path(),
@@ -686,7 +689,7 @@ Optional content"#,
         std::fs::remove_dir_all(temp_dir.path().join(".claude")).unwrap();
         std::fs::remove_file(temp_dir.path().join("CLAUDE.md")).unwrap();
 
-        run_generate(temp_dir.path(), args, false).unwrap();
+        run_generate(temp_dir.path(), args, false, false).unwrap();
 
         assert_file_not_exists(temp_dir.path(), ".claude/skills/");
         assert_file_exists(temp_dir.path(), "ai-rules/.generated-ai-rules");
@@ -718,11 +721,11 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME); // Roo now uses AGENTS.md
 
         assert_file_exists(temp_dir.path(), ".mcp.json");
@@ -754,12 +757,12 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Agent files should be created
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         // MCP files should NOT be created
         assert_file_not_exists(temp_dir.path(), ".mcp.json");
@@ -779,7 +782,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "firebender.json");
@@ -806,7 +809,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Rule files: only AMP (AGENTS.md), no CLAUDE.md
@@ -845,7 +848,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Both rules and commands for claude only
@@ -881,7 +884,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Verify skill symlink was created
@@ -915,7 +918,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Verify skill symlink was created in .agents/skills/
@@ -939,7 +942,7 @@ Optional content"#,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
         };
-        let result = run_generate(temp_dir.path(), args, false);
+        let result = run_generate(temp_dir.path(), args, false, false);
         assert!(result.is_ok());
 
         // Verify no skill symlinks created (skills directory shouldn't exist)

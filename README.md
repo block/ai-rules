@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
    ai-rules generate                            # All agents
    ai-rules generate --agents claude,cursor     # Specific agents
    ```
-   Creates `CLAUDE.md`, `.cursor/rules/*.mdc`, `AGENTS.md`, etc.
+   Creates `CLAUDE.md`, `AGENTS.md`, and other agent-specific files. Cursor uses `AGENTS.md` by default; set `use_cursor_rules: true` to keep the legacy `.cursor/rules/*.mdc` output.
 
 4. **Check status** to ensure everything is in sync:
    ```bash
@@ -79,6 +79,8 @@ Create `ai-rules/ai-rules-config.yaml` to set defaults:
 agents: [claude, cursor, cline]
 nested_depth: 2
 gitignore: true
+# Optional: keep legacy Cursor `.cursor/rules/*.mdc` output instead of `AGENTS.md`
+# use_cursor_rules: true
 ```
 
 See [Configuration Guide](docs/configuration.md) for all options.

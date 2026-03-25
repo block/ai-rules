@@ -264,7 +264,7 @@ build/
 *.other"#;
         fs::write(&gitignore_path, existing_content).unwrap();
 
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
         remove_gitignore_section(temp_path, &registry).unwrap();
 
         let content = fs::read_to_string(&gitignore_path).unwrap();
@@ -287,7 +287,7 @@ build/
         let existing_content = "# Existing content\n*.old\n";
         fs::write(&gitignore_path, existing_content).unwrap();
 
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
         remove_gitignore_section(temp_path, &registry).unwrap();
 
         let content = fs::read_to_string(&gitignore_path).unwrap();
@@ -296,7 +296,7 @@ build/
 
     #[test]
     fn test_gitignore_includes_skill_patterns() {
-        let registry = AgentToolRegistry::new(false);
+        let registry = AgentToolRegistry::new(false, false);
         let patterns = collect_all_gitignore_patterns(&registry, 1);
 
         // Check that skill patterns are included for agents that support skills
