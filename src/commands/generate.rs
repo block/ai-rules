@@ -16,17 +16,6 @@ pub fn run_generate(
 ) -> Result<()> {
     let nested_depth = if args.global { 0 } else { args.nested_depth };
 
-    println!(
-        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}, global: {}",
-        args.agents
-            .as_ref()
-            .map(|a| a.join(","))
-            .unwrap_or_else(|| "all".to_string()),
-        nested_depth,
-        args.gitignore,
-        args.global
-    );
-
     let registry = if args.global {
         AgentToolRegistry::new_global(use_claude_skills)
     } else {
@@ -39,6 +28,14 @@ pub fn run_generate(
             .map(|agents| registry.filter_valid_agents(agents))
             .unwrap_or_else(|| registry.get_all_tool_names()),
     };
+
+    println!(
+        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}, global: {}",
+        agents.join(","),
+        nested_depth,
+        args.gitignore,
+        args.global
+    );
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
 
     let mut generation_result = GenerationResult::default();
