@@ -15,7 +15,7 @@ mod tests {
     use super::*;
     use crate::cli::{InitArgs, ResolvedGenerateArgs, ResolvedStatusArgs};
     use crate::commands::status::check_project_status;
-    use crate::constants::AGENTS_MD_FILENAME;
+    use crate::constants::{AGENT_SECTION_END, AGENT_SECTION_START, AGENTS_MD_FILENAME};
     use crate::utils::test_utils::helpers::*;
     use std::fs;
     use std::path::Path;
@@ -100,9 +100,11 @@ mod tests {
             assert!(*in_sync, "All agents should be in sync after generation");
         }
 
-        // Change one generated file - replace CLAUDE.md symlink with a regular file
+        // Change one generated file - replace CLAUDE.md symlink with a file that has an ai-rules section
         fs::remove_file(project_path.join("CLAUDE.md")).unwrap();
-        create_file(project_path, "CLAUDE.md", "modified content");
+        let section_content =
+            format!("{AGENT_SECTION_START}\nmodified content\n{AGENT_SECTION_END}\n");
+        fs::write(project_path.join("CLAUDE.md"), section_content).unwrap();
 
         // Check status again - should be out of sync
         let status_args = ResolvedStatusArgs {

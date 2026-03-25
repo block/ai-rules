@@ -48,4 +48,7 @@ pub const CURSOR_COMMANDS_SUBDIR: &str = "ai-rules";
 pub const AMP_COMMANDS_DIR: &str = ".agents/commands";
 
 // Embedded template content (compile-time inclusion)
+pub const AGENT_SECTION_START: &str = "<!-- ai-rules generated start -->";
+pub const AGENT_SECTION_END: &str = "<!-- ai-rules generated end -->";
+
 pub const OPTIONAL_RULES_TEMPLATE: &str = include_str!("templates/optional_rules.md");

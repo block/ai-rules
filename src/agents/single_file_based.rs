@@ -3,7 +3,8 @@ use crate::models::SourceFile;
 use crate::operations::generate_all_rule_references;
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
-    create_symlink_to_inlined_file,
+    create_symlink_to_inlined_file, extract_section_content, remove_section_from_content,
+    uses_section_merging,
 };
 use anyhow::Result;
 use std::collections::HashMap;
@@ -89,10 +90,23 @@ impl AgentRuleGenerator for SingleFileBasedGenerator {
 
 pub fn clean_generated_files(current_dir: &Path, output_filename: &str) -> Result<()> {
     let output_file = current_dir.join(output_filename);
-    // Check if file exists OR if it's a symlink (even if broken)
-    if output_file.exists() || output_file.is_symlink() {
+
+    if output_file.is_symlink() {
+        fs::remove_file(&output_file)?;
+    } else if uses_section_merging(&output_file) {
+        if output_file.exists() {
+            let content = fs::read_to_string(&output_file)?;
+            let cleaned = remove_section_from_content(&content);
+            if cleaned.trim().is_empty() {
+                fs::remove_file(&output_file)?;
+            } else {
+                fs::write(&output_file, cleaned)?;
+            }
+        }
+    } else if output_file.exists() {
         fs::remove_file(&output_file)?;
     }
+
     Ok(())
 }
 
@@ -120,17 +134,31 @@ pub fn check_in_sync(
     let file_path = current_dir.join(output_filename);
 
     if source_files.is_empty() {
+        if uses_section_merging(&file_path) {
+            if file_path.exists() {
+                let content = fs::read_to_string(&file_path)?;
+                return Ok(extract_section_content(&content).is_none());
+            }
+            return Ok(true);
+        }
         return Ok(!file_path.exists());
     }
+
     if !file_path.exists() {
         return Ok(false);
     }
+
     let expected_files = generate_agent_file_contents(source_files, current_dir, output_filename);
     let empty_string = String::new();
     let expected_content = expected_files.get(&file_path).unwrap_or(&empty_string);
-    let actual_content = fs::read_to_string(&file_path)?;
 
-    Ok(actual_content == *expected_content)
+    let actual_content = fs::read_to_string(&file_path)?;
+    if uses_section_merging(&file_path) {
+        let section = extract_section_content(&actual_content);
+        Ok(section.as_deref() == Some(expected_content.as_str()))
+    } else {
+        Ok(actual_content == *expected_content)
+    }
 }
 
 #[cfg(test)]
@@ -153,13 +181,36 @@ mod tests {
     fn test_clean_generated_files_existing() {
         let temp_dir = TempDir::new().unwrap();
 
-        create_file(temp_dir.path(), "CLAUDE.md", "existing content");
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "<!-- ai-rules generated start -->\nexisting content\n<!-- ai-rules generated end -->\n",
+        );
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
 
         let result = clean_generated_files(temp_dir.path(), "CLAUDE.md");
 
         assert!(result.is_ok());
         assert_file_not_exists(temp_dir.path(), "CLAUDE.md");
+    }
+
+    #[test]
+    fn test_clean_generated_files_preserves_user_content() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "# User Content\n\n<!-- ai-rules generated start -->\nai rules section\n<!-- ai-rules generated end -->\n",
+        );
+
+        let result = clean_generated_files(temp_dir.path(), "CLAUDE.md");
+
+        assert!(result.is_ok());
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
+        let content = std::fs::read_to_string(temp_dir.path().join("CLAUDE.md")).unwrap();
+        assert!(content.contains("# User Content"));
+        assert!(!content.contains("<!-- ai-rules generated start -->"));
     }
 
     #[test]
@@ -285,10 +336,26 @@ mod tests {
     }
 
     #[test]
-    fn test_check_in_sync_empty_source_files_with_file() {
+    fn test_check_in_sync_empty_source_files_with_file_no_section() {
         let temp_dir = TempDir::new().unwrap();
 
-        create_file(temp_dir.path(), "CLAUDE.md", "stale content");
+        // File with only user content (no ai-rules section) is considered in sync
+        create_file(temp_dir.path(), "CLAUDE.md", "user content");
+
+        let result = check_in_sync(&[], temp_dir.path(), "CLAUDE.md").unwrap();
+
+        assert!(result);
+    }
+
+    #[test]
+    fn test_check_in_sync_empty_source_files_with_stale_section() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "<!-- ai-rules generated start -->\nstale content\n<!-- ai-rules generated end -->\n",
+        );
 
         let result = check_in_sync(&[], temp_dir.path(), "CLAUDE.md").unwrap();
 
@@ -350,7 +417,31 @@ mod tests {
         ];
 
         let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n\n@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md\n";
-        create_file(temp_dir.path(), "CLAUDE.md", expected_content);
+        let section = format!("<!-- ai-rules generated start -->\n{expected_content}<!-- ai-rules generated end -->\n");
+        create_file(temp_dir.path(), "CLAUDE.md", &section);
+
+        let result = check_in_sync(&source_files, temp_dir.path(), "CLAUDE.md").unwrap();
+
+        assert!(result);
+    }
+
+    #[test]
+    fn test_check_in_sync_match_with_surrounding_user_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_files = vec![create_test_source_file(
+            "always1",
+            "Always rule",
+            true,
+            vec!["**/*.ts".to_string()],
+            "always1 body",
+        )];
+
+        let expected_content =
+            "@ai-rules/.generated-ai-rules/ai-rules-generated-always1.md\n";
+        let file_content = format!(
+            "# My Rules\n\n<!-- ai-rules generated start -->\n{expected_content}<!-- ai-rules generated end -->\n"
+        );
+        create_file(temp_dir.path(), "CLAUDE.md", &file_content);
 
         let result = check_in_sync(&source_files, temp_dir.path(), "CLAUDE.md").unwrap();
 

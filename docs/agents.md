@@ -1,5 +1,19 @@
 # Supported AI Coding Agents
 
+## Section-Based File Management
+
+For markdown output files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, etc.), ai-rules manages a dedicated section rather than owning the whole file. This means you can have your own content in the same file — ai-rules will only touch the content between its markers:
+
+```markdown
+# My own project instructions
+
+<!-- ai-rules generated start -->
+@ai-rules/.generated-ai-rules/ai-rules-generated-example.md
+<!-- ai-rules generated end -->
+```
+
+Running `ai-rules generate` updates only the marked section. Running `ai-rules clean` removes the section; if no other content remains, the file is deleted. Files with non-markdown extensions (`.mdc`, `.json`) are still written and managed exclusively by ai-rules.
+
 ## Agent Compatibility Table
 
 | Agent | Standard Mode | Symlink Mode | MCP Support | Notes |

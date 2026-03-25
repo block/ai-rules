@@ -46,7 +46,8 @@ pub enum Commands {
 Configuration Precedence (highest to lowest):
   1. CLI options (--agents, --nested-depth, --gitignore, --global)
   2. Config file: ai-rules/ai-rules-config.yaml
-  3. Default values (all agents, depth 0, generated files are NOT git ignored)
+  3. .env file: AI_RULES_AGENTS in ai-rules/.env
+  4. Default values (all agents, depth 0, generated files are NOT git ignored)
 
 💡 Tip: Run 'ai-rules status' first to check sync status
 💡 Tip: When using --global, source rules are read from ~/ai-rules/")]

@@ -13,13 +13,25 @@ nested_depth: 2 # Search 2 levels deep for ai-rules/ folders
 gitignore: true # Ignore the generated rules in git
 ```
 
+## Default Agents via `.env`
+
+You can set a default agent list in `ai-rules/.env` using the `AI_RULES_AGENTS` key:
+
+```sh
+# ai-rules/.env
+AI_RULES_AGENTS=claude,cursor,gemini
+```
+
+This is useful when you want a personal default that differs from the team config (or when there's no config file at all). Unrecognised agent names in any list are skipped with a warning.
+
 ## Configuration Precedence
 
 Options are resolved in the following order (highest to lowest priority):
 
 1. **CLI options** - `--agents`, `--nested-depth`, `--no-gitignore`
 2. **Config file** - `ai-rules/ai-rules-config.yaml` (at current working directory)
-3. **Default values** - All agents, depth 0, generated files are NOT git ignored
+3. **`.env` file** - `AI_RULES_AGENTS` in `ai-rules/.env`
+4. **Default values** - All agents, depth 0, generated files are NOT git ignored
 
 ## Experimental Options
 

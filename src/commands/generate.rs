@@ -219,17 +219,19 @@ Test rule content"#;
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
-        // CLAUDE.md and AGENTS.md should be symlinks to inlined file
+        // CLAUDE.md and AGENTS.md should be regular files with section-merged content
         let claude_path = temp_dir.path().join("CLAUDE.md");
         let agents_path = temp_dir.path().join(AGENTS_MD_FILENAME);
-        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
-        assert!(agents_path.is_symlink(), "AGENTS.md should be a symlink");
+        assert!(!claude_path.is_symlink(), "CLAUDE.md should not be a symlink");
+        assert!(!agents_path.is_symlink(), "AGENTS.md should not be a symlink");
 
-        // Content should be inlined with description header (not @ references)
+        // Content should be inlined with description header wrapped in section markers
+        let expected_section =
+            "<!-- ai-rules generated start -->\n# Test rule\n\nTest rule content\n<!-- ai-rules generated end -->\n";
         let claude_content = std::fs::read_to_string(&claude_path).unwrap();
-        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+        assert_eq!(claude_content, expected_section);
         let agents_content = std::fs::read_to_string(&agents_path).unwrap();
-        assert_eq!(agents_content, "# Test rule\n\nTest rule content\n");
+        assert_eq!(agents_content, expected_section);
 
         assert_file_content(
             temp_dir.path(),
@@ -313,11 +315,14 @@ Test rule content
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
-        // CLAUDE.md should be a symlink with inlined content and description header
+        // CLAUDE.md should be a regular file with section-merged inlined content
         let claude_path = temp_dir.path().join("CLAUDE.md");
-        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
+        assert!(!claude_path.is_symlink(), "CLAUDE.md should not be a symlink");
         let claude_content = std::fs::read_to_string(&claude_path).unwrap();
-        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+        assert_eq!(
+            claude_content,
+            "<!-- ai-rules generated start -->\n# Test rule\n\nTest rule content\n<!-- ai-rules generated end -->\n"
+        );
 
         assert_file_content(
             temp_dir.path(),
@@ -467,11 +472,14 @@ Test rule content
             "ai-rules/.generated-ai-rules/ai-rules-generated-old.md",
         );
 
-        // CLAUDE.md should be a symlink with inlined content and description header
+        // CLAUDE.md should be a regular file with section-merged inlined content
         let claude_path = temp_dir.path().join("CLAUDE.md");
-        assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
+        assert!(!claude_path.is_symlink(), "CLAUDE.md should not be a symlink");
         let claude_content = std::fs::read_to_string(&claude_path).unwrap();
-        assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
+        assert_eq!(
+            claude_content,
+            "<!-- ai-rules generated start -->\n# Test rule\n\nTest rule content\n<!-- ai-rules generated end -->\n"
+        );
     }
 
     #[test]

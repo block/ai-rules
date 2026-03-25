@@ -94,7 +94,7 @@ fn strip_surrounding_quotes(s: &str) -> &str {
 }
 
 fn expand_env_vars(s: &str, dot_env: &HashMap<String, String>) -> String {
-    let mut result = String::with_capacity(s.len());
+    let mut result = String::new();
     let mut chars = s.chars().peekable();
 
     while let Some(c) = chars.next() {
@@ -159,10 +159,10 @@ fn read_mcp_source_file_content(current_dir: &Path) -> Result<Option<String>> {
     let content = fs::read_to_string(&mcp_source_path)
         .with_context(|| format!("Failed to read {}", mcp_source_path.display()))?;
 
-    let mut json: Value = serde_json::from_str(&content)
+    let _: McpConfig = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
-    let _: McpConfig = serde_json::from_value(json.clone())
+    let mut json: Value = serde_json::from_str(&content)
         .with_context(|| format!("Invalid MCP configuration in {}", mcp_source_path.display()))?;
 
     let dot_env = load_dot_env(current_dir);
@@ -193,7 +193,10 @@ mod tests {
     use super::*;
     use crate::utils::test_utils::helpers::*;
     use std::env;
+    use std::sync::Mutex;
     use tempfile::TempDir;
+
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     const TEST_MCP_CONFIG: &str = r#"{
   "mcpServers": {
@@ -456,6 +459,7 @@ mod tests {
 
     #[test]
     fn test_expand_env_vars_substitutes_set_variable() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe { env::set_var("AI_RULES_TEST_EXPAND_1", "secret123") };
         let result = expand_env_vars("Bearer ${AI_RULES_TEST_EXPAND_1}", &HashMap::new());
         unsafe { env::remove_var("AI_RULES_TEST_EXPAND_1") };
@@ -464,6 +468,7 @@ mod tests {
 
     #[test]
     fn test_expand_env_vars_leaves_unset_variable_as_placeholder() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe { env::remove_var("AI_RULES_TEST_UNSET_XYZ_999") };
         let result = expand_env_vars("${AI_RULES_TEST_UNSET_XYZ_999}", &HashMap::new());
         assert_eq!(result, "${AI_RULES_TEST_UNSET_XYZ_999}");
@@ -477,6 +482,7 @@ mod tests {
 
     #[test]
     fn test_expand_env_vars_uses_dot_env_when_shell_var_unset() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe { env::remove_var("AI_RULES_TEST_DOT_ENV_VAR") };
         let mut dot_env = HashMap::new();
         dot_env.insert("AI_RULES_TEST_DOT_ENV_VAR".to_string(), "from-dot-env".to_string());
@@ -486,6 +492,7 @@ mod tests {
 
     #[test]
     fn test_expand_env_vars_shell_var_takes_priority_over_dot_env() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe { env::set_var("AI_RULES_TEST_PRIORITY_VAR", "from-shell") };
         let mut dot_env = HashMap::new();
         dot_env.insert("AI_RULES_TEST_PRIORITY_VAR".to_string(), "from-dot-env".to_string());
@@ -554,6 +561,7 @@ mod tests {
 
     #[test]
     fn test_read_mcp_config_substitutes_vars_from_dot_env_file() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         unsafe { env::remove_var("AI_RULES_TEST_DOT_ENV_KEY") };
         create_file(temp_dir.path(), "ai-rules/.env", "AI_RULES_TEST_DOT_ENV_KEY=from-dot-env\n");
@@ -576,6 +584,7 @@ mod tests {
 
     #[test]
     fn test_read_mcp_config_substitutes_env_vars_in_output() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         unsafe { env::set_var("AI_RULES_TEST_API_KEY", "my-api-key") };
         let config = r#"{
@@ -600,6 +609,7 @@ mod tests {
 
     #[test]
     fn test_read_mcp_config_leaves_unset_env_vars_as_placeholder() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         unsafe { env::remove_var("AI_RULES_TEST_MISSING_KEY_999") };
         let config = r#"{

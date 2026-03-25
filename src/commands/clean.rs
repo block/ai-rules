@@ -34,13 +34,13 @@ mod tests {
         let project_path = temp_dir.path();
 
         create_file(project_path, ".generated-ai-rules/.gitkeep", "");
-        create_file(project_path, "CLAUDE.md", "Generated content");
+        create_file(project_path, "CLAUDE.md", "<!-- ai-rules generated start -->\nGenerated content\n<!-- ai-rules generated end -->\n");
         create_file(
             project_path,
             ".cursor/rules/ai-rules-generated-test.mdc",
             "Cursor rules",
         );
-        create_file(project_path, AGENTS_MD_FILENAME, "Goose rules");
+        create_file(project_path, AGENTS_MD_FILENAME, "<!-- ai-rules generated start -->\nGoose rules\n<!-- ai-rules generated end -->\n");
 
         create_file(project_path, "ai-rules/test.md", "Original rule");
         create_file(project_path, "src/main.ts", "console.log('test');");
@@ -62,7 +62,7 @@ mod tests {
         let project_path = temp_dir.path();
 
         create_file(project_path, "subproject1/.generated-ai-rules/.gitkeep", "");
-        create_file(project_path, "subproject1/CLAUDE.md", "Generated content");
+        create_file(project_path, "subproject1/CLAUDE.md", "<!-- ai-rules generated start -->\nGenerated content\n<!-- ai-rules generated end -->\n");
         create_file(
             project_path,
             "subproject1/.cursor/rules/ai-rules-generated-test.mdc",
@@ -71,12 +71,12 @@ mod tests {
         create_file(
             project_path,
             "nested/deep/subproject2/CLAUDE.md",
-            "Deep generated content",
+            "<!-- ai-rules generated start -->\nDeep generated content\n<!-- ai-rules generated end -->\n",
         );
         create_file(
             project_path,
             &format!("nested/deep/subproject2/{AGENTS_MD_FILENAME}"),
-            "Deep goose rules",
+            "<!-- ai-rules generated start -->\nDeep goose rules\n<!-- ai-rules generated end -->\n",
         );
 
         create_file(
@@ -108,13 +108,13 @@ mod tests {
         let project_path = temp_dir.path();
 
         create_file(project_path, ".generated-ai-rules/.gitkeep", "");
-        create_file(project_path, "CLAUDE.md", "Generated content");
+        create_file(project_path, "CLAUDE.md", "<!-- ai-rules generated start -->\nGenerated content\n<!-- ai-rules generated end -->\n");
         create_file(
             project_path,
             ".cursor/rules/ai-rules-generated-orphan.mdc",
             "Orphaned cursor rules",
         );
-        create_file(project_path, AGENTS_MD_FILENAME, "Orphaned goose rules");
+        create_file(project_path, AGENTS_MD_FILENAME, "<!-- ai-rules generated start -->\nOrphaned goose rules\n<!-- ai-rules generated end -->\n");
 
         create_file(project_path, "src/main.rs", "fn main() {}");
 

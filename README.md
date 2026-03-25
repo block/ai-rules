@@ -7,6 +7,7 @@ CLI tool to manage AI rules across different AI coding agents. Standardize and d
 - **Multi-Agent Support** - Generate rules for 11 AI coding agents from a single source
 - **Sync Management** - Track and maintain consistency across all generated rule files
 - **Selective Generation** - Generate rules for specific agents only
+- **Non-Destructive Output** - Manages a section within existing markdown files, preserving your own content
 - **MCP Support** - Generate Model Context Protocol configurations for compatible agents
 
 ## Installation
@@ -45,8 +46,9 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
    ```bash
    ai-rules generate                            # All agents
    ai-rules generate --agents claude,cursor     # Specific agents
+   ai-rules generate --global                   # Generate to home directory (~/.claude/CLAUDE.md etc.)
    ```
-   Creates `CLAUDE.md`, `.cursor/rules/*.mdc`, `AGENTS.md`, etc.
+   Creates or updates `CLAUDE.md`, `.cursor/rules/*.mdc`, `AGENTS.md`, etc. For markdown files, ai-rules manages a dedicated section — your own content in the same file is preserved.
 
 4. **Check status** to ensure everything is in sync:
    ```bash
@@ -69,6 +71,14 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
 ai-rules generate --agents claude,cursor    # Generate for specific agents
 ai-rules generate --nested-depth 2          # Process subdirectories
 ai-rules generate --gitignore               # Add generated files to .gitignore
+ai-rules generate --global                  # Generate to home directory paths
+```
+
+You can also set a default agent list in `ai-rules/.env` without passing `--agents` every time:
+
+```sh
+# ai-rules/.env
+AI_RULES_AGENTS=claude,cursor,gemini
 ```
 
 ## Configuration
@@ -91,7 +101,7 @@ See [Supported Agents](docs/agents.md) for detailed compatibility information.
 
 ## Documentation
 
-- [Configuration](docs/configuration.md) - Config file options and precedence
+- [Configuration](docs/configuration.md) - Config file, `.env` defaults, and precedence
 - [Rule Format](docs/rule-format.md) - Standard mode and symlink mode formats
 - [Supported Agents](docs/agents.md) - Agent compatibility and generated files
 - [MCP Configuration](docs/mcp.md) - Model Context Protocol setup

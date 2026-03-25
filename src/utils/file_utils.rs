@@ -1,4 +1,4 @@
-use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR};
+use crate::constants::{AGENT_SECTION_END, AGENT_SECTION_START, AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, GENERATED_FILE_PREFIX};
 use crate::operations::body_generator::inlined_agents_relative_path;
 use anyhow::Result;
 
@@ -113,20 +113,55 @@ pub fn create_symlink_to_inlined_file(current_dir: &Path, output_path: &Path) ->
     }
 
     let link = current_dir.join(output_path);
-    let relative_source = calculate_relative_path(output_path, &inlined_relative);
 
-    create_relative_symlink(&link, &relative_source)?;
+    if uses_section_merging(&link) {
+        if link.is_symlink() {
+            fs::remove_file(&link)?;
+        }
+        let inlined_content = fs::read_to_string(&source_full_path)?;
+        let existing_content = if link.exists() {
+            fs::read_to_string(&link)?
+        } else {
+            String::new()
+        };
+        let merged = merge_section_into_content(&existing_content, &inlined_content);
+        if let Some(parent) = link.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&link, merged)?;
+    } else {
+        let relative_source = calculate_relative_path(output_path, &inlined_relative);
+        create_relative_symlink(&link, &relative_source)?;
+    }
 
     Ok(true)
 }
 
 pub fn check_inlined_file_symlink(current_dir: &Path, symlink_path: &Path) -> Result<bool> {
+    let inlined_relative = inlined_agents_relative_path();
+    let source_full_path = current_dir.join(&inlined_relative);
+
+    if uses_section_merging(symlink_path) {
+        if !source_full_path.exists() {
+            if symlink_path.exists() {
+                let content = fs::read_to_string(symlink_path)?;
+                return Ok(extract_section_content(&content).is_none());
+            }
+            return Ok(true);
+        }
+        if !symlink_path.exists() {
+            return Ok(false);
+        }
+        let expected = fs::read_to_string(&source_full_path)?;
+        let actual = fs::read_to_string(symlink_path)?;
+        return Ok(extract_section_content(&actual).as_deref() == Some(expected.as_str()));
+    }
+
     if !symlink_path.is_symlink() {
         return Ok(false);
     }
 
-    let inlined_relative = inlined_agents_relative_path();
-    let expected_target = current_dir.join(&inlined_relative);
+    let expected_target = source_full_path;
     let actual_target = fs::read_link(symlink_path)?;
 
     let resolved_target = if actual_target.is_absolute() {
@@ -144,12 +179,102 @@ pub fn check_inlined_file_symlink(current_dir: &Path, symlink_path: &Path) -> Re
     Ok(resolved_canonical == expected_canonical && expected_target.exists())
 }
 
+pub fn uses_section_merging(file_path: &Path) -> bool {
+    let is_md = file_path.extension().is_some_and(|ext| ext == "md");
+    if !is_md {
+        return false;
+    }
+    let path_str = file_path.to_string_lossy();
+    !path_str.contains(GENERATED_FILE_PREFIX)
+}
+
+pub fn merge_section_into_content(existing_content: &str, section_content: &str) -> String {
+    let wrapped = format!(
+        "{}\n{}{}\n",
+        AGENT_SECTION_START,
+        ensure_trailing_newline(section_content),
+        AGENT_SECTION_END
+    );
+
+    if let (Some(start), Some(end_start)) = (
+        existing_content.find(AGENT_SECTION_START),
+        existing_content.find(AGENT_SECTION_END),
+    ) {
+        if end_start <= start {
+            return format!("{existing_content}\n{wrapped}");
+        }
+        let end = end_start + AGENT_SECTION_END.len();
+        let end = if existing_content[end..].starts_with('\n') { end + 1 } else { end };
+        format!("{}{}{}", &existing_content[..start], wrapped, &existing_content[end..])
+    } else if existing_content.is_empty() {
+        wrapped
+    } else {
+        let separator = if existing_content.ends_with("\n\n") {
+            ""
+        } else if existing_content.ends_with('\n') {
+            "\n"
+        } else {
+            "\n\n"
+        };
+        format!("{existing_content}{separator}{wrapped}")
+    }
+}
+
+pub fn remove_section_from_content(content: &str) -> String {
+    if let (Some(start), Some(end_start)) = (
+        content.find(AGENT_SECTION_START),
+        content.find(AGENT_SECTION_END),
+    ) {
+        if end_start <= start {
+            return content.to_string();
+        }
+        let end = end_start + AGENT_SECTION_END.len();
+        let end = if content[end..].starts_with('\n') { end + 1 } else { end };
+        let effective_start = if content[..start].ends_with("\n\n") {
+            start - 1
+        } else {
+            start
+        };
+        format!("{}{}", &content[..effective_start], &content[end..])
+    } else {
+        content.to_string()
+    }
+}
+
+pub fn extract_section_content(content: &str) -> Option<String> {
+    let start = content.find(AGENT_SECTION_START)?;
+    let end_start = content.find(AGENT_SECTION_END)?;
+    if end_start <= start {
+        return None;
+    }
+    let inner_start = start + AGENT_SECTION_START.len();
+    let inner_start = if content[inner_start..].starts_with('\n') {
+        inner_start + 1
+    } else {
+        inner_start
+    };
+    Some(content[inner_start..end_start].to_string())
+}
+
 pub fn write_directory_files(files_to_write: &HashMap<PathBuf, String>) -> Result<()> {
     for (file_path, content) in files_to_write {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::write(file_path, content)?;
+        if uses_section_merging(file_path) {
+            if file_path.is_symlink() {
+                fs::remove_file(file_path)?;
+            }
+            let existing_content = if file_path.exists() {
+                fs::read_to_string(file_path)?
+            } else {
+                String::new()
+            };
+            let merged = merge_section_into_content(&existing_content, content);
+            fs::write(file_path, merged)?;
+        } else {
+            fs::write(file_path, content)?;
+        }
     }
 
     Ok(())
@@ -622,5 +747,128 @@ mod tests {
 
         let result = find_files_by_extension(temp_path, "md");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_uses_section_merging_true_for_md() {
+        assert!(uses_section_merging(Path::new("CLAUDE.md")));
+        assert!(uses_section_merging(Path::new("AGENTS.md")));
+        assert!(uses_section_merging(Path::new("GEMINI.md")));
+    }
+
+    #[test]
+    fn test_uses_section_merging_false_for_generated_md() {
+        assert!(!uses_section_merging(Path::new(
+            "ai-rules/.generated-ai-rules/ai-rules-generated-example.md"
+        )));
+        assert!(!uses_section_merging(Path::new(
+            ".claude/skills/ai-rules-generated-foo/SKILL.md"
+        )));
+    }
+
+    #[test]
+    fn test_uses_section_merging_false_for_non_md() {
+        assert!(!uses_section_merging(Path::new(".mcp.json")));
+        assert!(!uses_section_merging(Path::new(".cursor/rules/rule.mdc")));
+        assert!(!uses_section_merging(Path::new("firebender.json")));
+    }
+
+    #[test]
+    fn test_merge_section_into_empty_content() {
+        let result = merge_section_into_content("", "my content\n");
+        assert_eq!(
+            result,
+            "<!-- ai-rules generated start -->\nmy content\n<!-- ai-rules generated end -->\n"
+        );
+    }
+
+    #[test]
+    fn test_merge_section_appends_to_existing_content() {
+        let result = merge_section_into_content("# My Rules\n", "ai content\n");
+        assert!(result.starts_with("# My Rules\n"));
+        assert!(result.contains("<!-- ai-rules generated start -->\nai content\n<!-- ai-rules generated end -->\n"));
+    }
+
+    #[test]
+    fn test_merge_section_replaces_existing_section() {
+        let existing = "<!-- ai-rules generated start -->\nold content\n<!-- ai-rules generated end -->\n";
+        let result = merge_section_into_content(existing, "new content\n");
+        assert_eq!(
+            result,
+            "<!-- ai-rules generated start -->\nnew content\n<!-- ai-rules generated end -->\n"
+        );
+    }
+
+    #[test]
+    fn test_merge_section_replaces_section_preserving_surrounding_content() {
+        let existing = "# Header\n\n<!-- ai-rules generated start -->\nold\n<!-- ai-rules generated end -->\n\n# Footer\n";
+        let result = merge_section_into_content(existing, "new\n");
+        assert!(result.contains("# Header\n"));
+        assert!(result.contains("<!-- ai-rules generated start -->\nnew\n<!-- ai-rules generated end -->\n"));
+        assert!(result.contains("# Footer\n"));
+        assert!(!result.contains("old"));
+    }
+
+    #[test]
+    fn test_merge_section_inverted_markers_appends() {
+        let existing = "<!-- ai-rules generated end -->\nsome\n<!-- ai-rules generated start -->\n";
+        let result = merge_section_into_content(existing, "new\n");
+        assert!(result.contains(existing));
+        assert!(result.contains("<!-- ai-rules generated start -->\nnew\n<!-- ai-rules generated end -->\n"));
+    }
+
+    #[test]
+    fn test_remove_section_from_content_removes_section() {
+        let content = "<!-- ai-rules generated start -->\ncontent\n<!-- ai-rules generated end -->\n";
+        assert_eq!(remove_section_from_content(content), "");
+    }
+
+    #[test]
+    fn test_remove_section_preserves_surrounding_content() {
+        let content = "# Header\n\n<!-- ai-rules generated start -->\ncontent\n<!-- ai-rules generated end -->\n";
+        let result = remove_section_from_content(content);
+        assert_eq!(result, "# Header\n");
+        assert!(!result.contains("ai-rules generated"));
+    }
+
+    #[test]
+    fn test_remove_section_no_markers_returns_unchanged() {
+        let content = "# Just user content\n";
+        assert_eq!(remove_section_from_content(content), content);
+    }
+
+    #[test]
+    fn test_remove_section_inverted_markers_returns_unchanged() {
+        let content = "<!-- ai-rules generated end -->\nsome\n<!-- ai-rules generated start -->\n";
+        assert_eq!(remove_section_from_content(content), content);
+    }
+
+    #[test]
+    fn test_extract_section_content_returns_inner() {
+        let content = "<!-- ai-rules generated start -->\ninner content\n<!-- ai-rules generated end -->\n";
+        assert_eq!(
+            extract_section_content(content),
+            Some("inner content\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_section_content_none_when_no_markers() {
+        assert_eq!(extract_section_content("no markers here"), None);
+    }
+
+    #[test]
+    fn test_extract_section_content_none_when_inverted() {
+        let content = "<!-- ai-rules generated end -->\n<!-- ai-rules generated start -->\n";
+        assert_eq!(extract_section_content(content), None);
+    }
+
+    #[test]
+    fn test_extract_section_ignores_surrounding_content() {
+        let content = "# Header\n\n<!-- ai-rules generated start -->\ninner\n<!-- ai-rules generated end -->\n\n# Footer\n";
+        assert_eq!(
+            extract_section_content(content),
+            Some("inner\n".to_string())
+        );
     }
 }

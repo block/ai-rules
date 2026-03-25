@@ -125,11 +125,13 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let generator = CodexGenerator::new(AGENTS_MD_FILENAME);
 
-        // Create an AGENTS.md file
-        create_file(temp_dir.path(), "AGENTS.md", "existing content");
+        create_file(
+            temp_dir.path(),
+            "AGENTS.md",
+            "<!-- ai-rules generated start -->\nexisting content\n<!-- ai-rules generated end -->\n",
+        );
         assert_file_exists(temp_dir.path(), "AGENTS.md");
 
-        // Clean should remove it
         let result = generator.clean(temp_dir.path());
         assert!(result.is_ok());
         assert_file_not_exists(temp_dir.path(), "AGENTS.md");
@@ -167,9 +169,11 @@ mod tests {
             "rule1 body",
         )];
 
-        // Write correct content
         let expected_content = "@ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md\n";
-        create_file(temp_dir.path(), "AGENTS.md", expected_content);
+        let section = format!(
+            "<!-- ai-rules generated start -->\n{expected_content}<!-- ai-rules generated end -->\n"
+        );
+        create_file(temp_dir.path(), "AGENTS.md", &section);
 
         let result = generator
             .check_agent_contents(&source_files, temp_dir.path())

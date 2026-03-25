@@ -13,7 +13,8 @@ use crate::operations::{claude_skills, generate_inlined_required_content};
 use crate::operations::mcp_reader::read_mcp_config;
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
-    create_symlink_to_inlined_file,
+    create_symlink_to_inlined_file, extract_section_content, remove_section_from_content,
+    uses_section_merging,
 };
 use anyhow::Result;
 use serde_json::{json, Map, Value};
@@ -46,9 +47,23 @@ impl AgentRuleGenerator for ClaudeGenerator {
 
     fn clean(&self, current_dir: &Path) -> Result<()> {
         let output_file = current_dir.join(&self.output_filename);
-        if output_file.exists() || output_file.is_symlink() {
+
+        if output_file.is_symlink() {
+            fs::remove_file(&output_file)?;
+        } else if uses_section_merging(&output_file) {
+            if output_file.exists() {
+                let content = fs::read_to_string(&output_file)?;
+                let cleaned = remove_section_from_content(&content);
+                if cleaned.trim().is_empty() {
+                    fs::remove_file(&output_file)?;
+                } else {
+                    fs::write(&output_file, cleaned)?;
+                }
+            }
+        } else if output_file.exists() {
             fs::remove_file(&output_file)?;
         }
+
         claude_skills::remove_generated_skills(current_dir)?;
 
         Ok(())
@@ -85,7 +100,14 @@ impl AgentRuleGenerator for ClaudeGenerator {
         let file_path = current_dir.join(&self.output_filename);
 
         if source_files.is_empty() {
-            if file_path.exists() {
+            if uses_section_merging(&file_path) {
+                if file_path.exists() {
+                    let content = fs::read_to_string(&file_path)?;
+                    if extract_section_content(&content).is_some() {
+                        return Ok(false);
+                    }
+                }
+            } else if file_path.exists() {
                 return Ok(false);
             }
         } else {
@@ -94,9 +116,17 @@ impl AgentRuleGenerator for ClaudeGenerator {
             }
             // In skills mode: check inlined required content
             let expected_content = generate_inlined_required_content(source_files);
-            let actual_content = fs::read_to_string(&file_path)?;
-            if actual_content != expected_content {
-                return Ok(false);
+            if uses_section_merging(&file_path) {
+                let actual_content = fs::read_to_string(&file_path)?;
+                let section = extract_section_content(&actual_content);
+                if section.as_deref() != Some(expected_content.as_str()) {
+                    return Ok(false);
+                }
+            } else {
+                let actual_content = fs::read_to_string(&file_path)?;
+                if actual_content != expected_content {
+                    return Ok(false);
+                }
             }
         }
 
@@ -336,7 +366,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let generator = ClaudeGenerator::new("claude", "CLAUDE.md", true, false);
 
-        create_file(temp_dir.path(), "CLAUDE.md", "content");
+        create_file(
+            temp_dir.path(),
+            "CLAUDE.md",
+            "<!-- ai-rules generated start -->\ncontent\n<!-- ai-rules generated end -->\n",
+        );
 
         let generated_skills_dir = temp_dir
             .path()
@@ -603,9 +637,12 @@ mod tests {
             .unwrap();
         assert!(!result);
 
-        // Create CLAUDE.md with inlined required content
+        // Create CLAUDE.md with inlined required content wrapped in section markers
         let claude_content = generate_inlined_required_content(&source_files);
-        create_file(temp_dir.path(), "CLAUDE.md", &claude_content);
+        let section = format!(
+            "<!-- ai-rules generated start -->\n{claude_content}<!-- ai-rules generated end -->\n"
+        );
+        create_file(temp_dir.path(), "CLAUDE.md", &section);
 
         // Still not in sync (missing skill)
         let result = generator
