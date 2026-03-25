@@ -64,7 +64,7 @@ fn collect_all_gitignore_patterns(
     }
 }
 
-fn remove_ai_rules_section(content: String) -> String {
+pub(crate) fn remove_ai_rules_section(content: String) -> String {
     if let Some(start) = content.find("# AI Rules - Generated Files") {
         if let Some(end) = content.find("# End AI Rules") {
             let mut result = content;
@@ -102,6 +102,20 @@ fn update_gitignore(current_dir: &Path, patterns: Vec<String>) -> Result<()> {
     }
 
     fs::write(&gitignore_path, content)?;
+    Ok(())
+}
+
+/// Removes the "# AI Rules - Generated Files" / "# End AI Rules" block from a .gitignore file at the given path.
+/// No-op if the file does not exist or the section is not present.
+pub fn remove_ai_rules_section_from_file(gitignore_path: &Path) -> Result<()> {
+    if !gitignore_path.exists() {
+        return Ok(());
+    }
+    let content = fs::read_to_string(gitignore_path)?;
+    let new_content = remove_ai_rules_section(content.clone());
+    if new_content != content {
+        fs::write(gitignore_path, new_content)?;
+    }
     Ok(())
 }
 

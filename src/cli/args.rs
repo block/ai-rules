@@ -32,6 +32,8 @@ pub enum Commands {
     Status(StatusArgs),
     /// Clean up generated files
     Clean(CleanArgs),
+    /// Migrate from ai-rules/ layout to agents.md standard (one-way)
+    Migrate(MigrateArgs),
     /// List all supported coding agents
     ListAgents,
 }
@@ -111,6 +113,24 @@ Configuration Precedence (highest to lowest):
 pub struct CleanArgs {
     #[command(flatten)]
     pub nested_depth_args: NestedDepthArgs,
+}
+
+#[derive(Args)]
+#[command(after_help = "Examples:
+  ai-rules migrate                    # Migrate current directory only (nested_depth 0)
+  ai-rules migrate --nested-depth 2    # Migrate ai-rules/ in nested directories
+
+Migrates from ai-rules/ layout to agents.md standard: writes AGENTS.md at project root,
+moves ai-rules/skills and ai-rules/commands (and other ai-rules subdirs) into .agents/,
+removes generated files and purges the ai-rules/ directory. One-way. Prompts for confirmation
+unless --force or --dry-run. Run only when ready to adopt the standard. Use --dry-run first.")]
+pub struct MigrateArgs {
+    #[command(flatten)]
+    pub nested_depth_args: NestedDepthArgs,
+    #[arg(long, help = "Print what would be done without writing or deleting")]
+    pub dry_run: bool,
+    #[arg(long, help = "Skip confirmation prompt and run migration (default: prompt before migrating)")]
+    pub force: bool,
 }
 
 #[derive(Debug, Clone)]

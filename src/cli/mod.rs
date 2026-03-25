@@ -6,7 +6,7 @@ mod tests;
 
 pub use args::*;
 
-use crate::commands::{run_clean, run_generate, run_init, run_list_agents, run_status};
+use crate::commands::{run_clean, run_generate, run_init, run_list_agents, run_migrate, run_status};
 use crate::config;
 use clap::Parser;
 
@@ -42,6 +42,10 @@ pub fn run_cli() -> anyhow::Result<()> {
         Some(Commands::Clean(args)) => {
             let nested_depth = args.nested_depth_args.with_config(config.as_ref());
             run_clean(&current_dir, nested_depth, use_claude_skills)
+        }
+        Some(Commands::Migrate(args)) => {
+            let nested_depth = args.nested_depth_args.with_config(config.as_ref());
+            run_migrate(&current_dir, nested_depth, args.dry_run, args.force)
         }
         Some(Commands::ListAgents) => run_list_agents(use_claude_skills),
         None => {

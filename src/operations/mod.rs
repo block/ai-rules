@@ -6,6 +6,7 @@ pub mod generation_result;
 pub mod gitignore_updater;
 pub mod legacy_cleaner;
 pub mod mcp_reader;
+pub mod migrate;
 pub mod optional_rules;
 pub mod skills_reader;
 pub mod source_reader;
