@@ -32,5 +32,3 @@ use_claude_skills: true  # Default: false
 Experimental toggle to test Claude Code's skills feature. When enabled, rules with `alwaysApply: false` are generated as separate skills in `.claude/skills/` instead of being included in `CLAUDE.md`. This allows Claude Code to selectively apply optional rules based on context.
 
 See [Commands and Skills](commands-and-skills.md) for more details on skills.
-
-Cursor uses `AGENTS.md` in standard mode so it shares the same generated content path as other `AGENTS.md`-based agents.
