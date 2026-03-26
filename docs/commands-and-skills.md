@@ -41,37 +41,6 @@ Command files support optional YAML frontmatter:
 
 ---
 
-## Claude Code Skills
-
-Claude Code supports optional rules through [skills](https://docs.claude.com/en/docs/claude-code/skills). This requires `use_claude_skills: true` in your config.
-
-When enabled and a source rule has `alwaysApply: false`, the tool generates:
-- **CLAUDE.md** - References required rules (`alwaysApply: true`) only
-- **.claude/skills/{rule-name}/SKILL.md** - Individual skill files for optional rules
-
-### Example
-
-Source file `ai-rules/testing.md`:
-
-```markdown
----
-description: React Testing Library best practices
-alwaysApply: false
----
-# Testing Rules
-- Prefer user-centric queries (getByRole, getByLabelText)
-- Avoid implementation details (testId, class names)
-- Test behavior, not implementation
-```
-
-Generates:
-- `CLAUDE.md` - Contains only required rules
-- `.claude/skills/testing/SKILL.md` - Skill that Claude can invoke when working with test files
-
-Skills use the `description` field as the skill name for better discoverability.
-
----
-
 ## User-Defined Skills
 
 You can define custom skill folders that are symlinked to supported agents' skill directories during generation.

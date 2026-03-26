@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::constants::{AI_RULE_SOURCE_DIR, GENERATED_FILE_PREFIX, SKILLS_DIR, SKILL_FILENAME};
 use crate::utils::file_utils::{calculate_relative_path, create_relative_symlink};
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SkillFolder {
     pub name: String,
@@ -14,7 +13,6 @@ pub struct SkillFolder {
 }
 
 /// Finds all valid skill folders in ai-rules/skills/ directory
-#[allow(dead_code)]
 pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
     let skills_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(SKILLS_DIR);
 
@@ -72,7 +70,6 @@ pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
 }
 
 /// Creates symlinks for each skill folder in the target directory
-#[allow(dead_code)]
 pub fn create_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec<PathBuf>> {
     let skill_folders = find_skill_folders(current_dir)?;
 
@@ -100,9 +97,7 @@ pub fn create_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec
     Ok(created_symlinks)
 }
 
-/// Removes generated skill symlinks from target directory
-#[allow(dead_code)]
-pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<()> {
+pub fn remove_generated_skills(current_dir: &Path, target_dir: &str) -> Result<()> {
     let target_path = current_dir.join(target_dir);
 
     if !target_path.exists() {
@@ -114,12 +109,14 @@ pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> 
         let path = entry.path();
 
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-            // Remove any file/symlink that starts with our generated prefix.
-            // Note: fs::remove_file only works on files and symlinks, not directories,
-            // so this won't accidentally remove directories from experimental claude skills.
             if file_name.starts_with(GENERATED_FILE_PREFIX) {
-                fs::remove_file(&path)
-                    .with_context(|| format!("Failed to remove: {}", path.display()))?;
+                if path.is_dir() && !path.is_symlink() {
+                    fs::remove_dir_all(&path)
+                        .with_context(|| format!("Failed to remove: {}", path.display()))?;
+                } else {
+                    fs::remove_file(&path)
+                        .with_context(|| format!("Failed to remove: {}", path.display()))?;
+                }
             }
         }
     }
@@ -128,7 +125,6 @@ pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> 
 }
 
 /// Checks if generated skill symlinks are in sync
-#[allow(dead_code)]
 pub fn check_skill_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Result<bool> {
     let skill_folders = find_skill_folders(current_dir)?;
     let target_path = current_dir.join(target_dir);
@@ -213,7 +209,6 @@ pub fn check_skill_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Res
 }
 
 /// Returns gitignore patterns for generated skill symlinks
-#[allow(dead_code)]
 pub fn get_skill_gitignore_patterns(target_dir: &str) -> Vec<String> {
     vec![format!("{}/{}*", target_dir, GENERATED_FILE_PREFIX)]
 }
@@ -356,7 +351,7 @@ mod tests {
         fs::write(user_skill.join(SKILL_FILENAME), "user content").unwrap();
 
         // Remove generated symlinks
-        remove_generated_skill_symlinks(temp_dir.path(), ".claude/skills").unwrap();
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
 
         // Check generated symlink is gone
         let generated = temp_dir
@@ -369,6 +364,31 @@ mod tests {
         assert!(user_skill.exists());
         let content = fs::read_to_string(user_skill.join(SKILL_FILENAME)).unwrap();
         assert_eq!(content, "user content");
+    }
+
+    #[test]
+    fn test_remove_generated_skill_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_dir = temp_dir.path().join(".claude/skills");
+        fs::create_dir_all(&target_dir).unwrap();
+
+        // Create a real generated directory (from old use_claude_skills mode)
+        let generated_dir = target_dir.join(format!("{}old-skill", GENERATED_FILE_PREFIX));
+        fs::create_dir_all(&generated_dir).unwrap();
+        fs::write(generated_dir.join(SKILL_FILENAME), "old content").unwrap();
+
+        // Create a user's custom skill directory
+        let user_skill = target_dir.join("user-custom-skill");
+        fs::create_dir_all(&user_skill).unwrap();
+        fs::write(user_skill.join(SKILL_FILENAME), "user content").unwrap();
+
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
+
+        // Generated directory should be removed
+        assert!(!generated_dir.exists());
+
+        // User skill should remain
+        assert!(user_skill.exists());
     }
 
     #[test]
@@ -533,7 +553,7 @@ mod tests {
         assert!(!broken_symlink.exists()); // exists() returns false for broken symlinks
 
         // Remove should clean up broken symlinks
-        remove_generated_skill_symlinks(temp_dir.path(), ".claude/skills").unwrap();
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
 
         // Broken symlink should be removed
         assert!(!broken_symlink.is_symlink());
