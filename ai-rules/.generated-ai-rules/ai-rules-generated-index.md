@@ -41,6 +41,14 @@ The codebase follows a modular Rust structure:
 **Run the tool:**
 - `cargo run -- <args>` - Run with arguments (e.g., `cargo run -- init`)
 
+## Before Committing
+
+Always run these before committing changes:
+1. `cargo fmt --all` - Format code
+2. `./scripts/clippy-check.sh` - Check for lint errors
+
+Do not commit code that fails formatting or clippy checks.
+
 ## Coding Style & Naming Conventions
 
 **Code Organization:**
