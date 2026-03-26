@@ -38,8 +38,6 @@ In Standard Mode, `ai-rules generate` produces a single inlined file at `ai-rule
 
 Most agent output files (e.g., `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) are created as **symlinks** pointing to this inlined file. This ensures every agent reads the same complete content without needing `@` file expansion support.
 
-Firebender generates its own JSON format and does not use the inlined file. Cursor uses the inlined `AGENTS.md` path.
-
 ## Symlink Mode
 
 Use Symlink Mode for simple setups where all agents share the same rules.

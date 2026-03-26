@@ -1,9 +1,9 @@
 use crate::agents::command_generator::CommandGeneratorTrait;
 use crate::operations::command_reader::{
-    check_command_symlinks_in_subdir_in_sync, check_command_symlinks_in_sync,
-    create_command_symlinks, create_command_symlinks_in_subdir, get_command_gitignore_patterns,
-    get_command_gitignore_patterns_subdir, remove_command_symlinks_in_subdir,
-    remove_generated_command_symlinks,
+    check_command_symlinks_in_subdir_in_sync, check_command_symlinks_in_sync_with_extension,
+    create_command_symlinks_in_subdir, create_command_symlinks_with_extension,
+    get_command_gitignore_patterns_subdir, get_command_gitignore_patterns_with_extension,
+    remove_command_symlinks_in_subdir, remove_generated_command_symlinks_with_extension,
 };
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -13,6 +13,7 @@ pub struct ExternalCommandsGenerator {
     /// Optional subdirectory for symlinks (e.g., "ai-rules" for .claude/commands/ai-rules/)
     /// When None, uses flat structure with -ai-rules.md suffix
     subdir: Option<String>,
+    extension: String,
 }
 
 impl ExternalCommandsGenerator {
@@ -21,6 +22,16 @@ impl ExternalCommandsGenerator {
         Self {
             target_dir: target_dir.to_string(),
             subdir: None,
+            extension: "md".to_string(),
+        }
+    }
+
+    /// Create a generator with flat structure and a custom extension.
+    pub fn with_extension(target_dir: &str, extension: &str) -> Self {
+        Self {
+            target_dir: target_dir.to_string(),
+            subdir: None,
+            extension: extension.to_string(),
         }
     }
 
@@ -29,6 +40,7 @@ impl ExternalCommandsGenerator {
         Self {
             target_dir: target_dir.to_string(),
             subdir: Some(subdir.to_string()),
+            extension: "md".to_string(),
         }
     }
 }
@@ -39,7 +51,11 @@ impl CommandGeneratorTrait for ExternalCommandsGenerator {
             Some(subdir) => {
                 create_command_symlinks_in_subdir(current_dir, &self.target_dir, subdir)
             }
-            None => create_command_symlinks(current_dir, &self.target_dir),
+            None => create_command_symlinks_with_extension(
+                current_dir,
+                &self.target_dir,
+                &self.extension,
+            ),
         }
     }
 
@@ -48,7 +64,11 @@ impl CommandGeneratorTrait for ExternalCommandsGenerator {
             Some(subdir) => {
                 remove_command_symlinks_in_subdir(current_dir, &self.target_dir, subdir)
             }
-            None => remove_generated_command_symlinks(current_dir, &self.target_dir),
+            None => remove_generated_command_symlinks_with_extension(
+                current_dir,
+                &self.target_dir,
+                &self.extension,
+            ),
         }
     }
 
@@ -57,14 +77,20 @@ impl CommandGeneratorTrait for ExternalCommandsGenerator {
             Some(subdir) => {
                 check_command_symlinks_in_subdir_in_sync(current_dir, &self.target_dir, subdir)
             }
-            None => check_command_symlinks_in_sync(current_dir, &self.target_dir),
+            None => check_command_symlinks_in_sync_with_extension(
+                current_dir,
+                &self.target_dir,
+                &self.extension,
+            ),
         }
     }
 
     fn command_gitignore_patterns(&self) -> Vec<String> {
         match &self.subdir {
             Some(subdir) => get_command_gitignore_patterns_subdir(&self.target_dir, subdir),
-            None => get_command_gitignore_patterns(&self.target_dir),
+            None => {
+                get_command_gitignore_patterns_with_extension(&self.target_dir, &self.extension)
+            }
         }
     }
 }
@@ -91,6 +117,7 @@ mod tests {
         let generator = ExternalCommandsGenerator::new(".agents/commands");
         assert_eq!(generator.target_dir, ".agents/commands");
         assert!(generator.subdir.is_none());
+        assert_eq!(generator.extension, "md");
     }
 
     #[test]
@@ -178,6 +205,7 @@ mod tests {
         let generator = ExternalCommandsGenerator::with_subdir(".claude/commands", "ai-rules");
         assert_eq!(generator.target_dir, ".claude/commands");
         assert_eq!(generator.subdir, Some("ai-rules".to_string()));
+        assert_eq!(generator.extension, "md");
     }
 
     #[test]
@@ -284,6 +312,17 @@ mod tests {
             amp_gen.command_gitignore_patterns(),
             vec![format!(
                 ".agents/commands/*-{}.md",
+                GENERATED_COMMAND_SUFFIX
+            )]
+        );
+
+        // Firebender uses flat structure with .mdc files
+        let firebender_gen =
+            ExternalCommandsGenerator::with_extension(".firebender/commands", "mdc");
+        assert_eq!(
+            firebender_gen.command_gitignore_patterns(),
+            vec![format!(
+                ".firebender/commands/*-{}.mdc",
                 GENERATED_COMMAND_SUFFIX
             )]
         );

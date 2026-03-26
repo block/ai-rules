@@ -8,7 +8,7 @@
 **/.cursor/commands/ai-rules/
 **/.cursor/mcp.json
 **/.cursor/skills/ai-rules-generated-*
-**/.firebender/skills/ai-rules-generated-*
+**/.firebender/commands/*-ai-rules.mdc
 **/.gemini/settings.json
 **/.mcp.json
 **/.roo/mcp.json

@@ -36,6 +36,6 @@ See the [Supported Agents](agents.md) table for which agents support MCP and the
 |-------|-------------------|
 | Claude Code | `.mcp.json` |
 | Cursor | `.cursor/mcp.json` |
-| Firebender | Embedded in `firebender.json` |
+| Firebender | `firebender.json` (generated when MCP and/or overlay config exists) |
 | Gemini | Embedded in `.gemini/settings.json` |
 | Roo | `.roo/mcp.json` |

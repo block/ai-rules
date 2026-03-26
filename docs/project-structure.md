@@ -40,8 +40,12 @@ monorepo/
 ├── CLAUDE.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 ├── AGENTS.md                     # Symlink -> ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 ├── .clinerules/                  # Root Cline rules (symlink)
+├── .firebender/
+│   ├── commands/                 # Firebender commands (generated symlinks)
+├── .agents/
+│   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
 ├── .mcp.json                     # Root MCP config (generated)
-└── firebender.json               # Root Firebender config (generated)
+└── firebender.json               # Root Firebender supplemental config (generated when needed)
 ```
 
 ## Symlink Mode
@@ -62,7 +66,11 @@ project/
 ├── CLAUDE.md                     # Symlink -> ai-rules/AGENTS.md
 ├── GEMINI.md                     # Symlink -> ai-rules/AGENTS.md
 ├── AGENTS.md                     # Symlink -> ai-rules/AGENTS.md
-├── firebender.json               # References ai-rules/AGENTS.md
+├── .firebender/
+│   ├── commands/                 # Firebender commands (generated symlinks)
+├── .agents/
+│   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
+├── firebender.json               # Supplemental Firebender config (if mcp.json or overlay exists)
 ├── .clinerules/
 │   └── AGENTS.md                 # Symlink -> ../ai-rules/AGENTS.md
 ├── .cursor/

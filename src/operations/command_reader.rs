@@ -44,7 +44,11 @@ pub fn find_command_files(current_dir: &Path) -> Result<Vec<CommandFile>> {
 }
 
 /// Creates individual symlinks for each command file in the target directory
-pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec<PathBuf>> {
+pub fn create_command_symlinks_with_extension(
+    current_dir: &Path,
+    target_dir: &str,
+    extension: &str,
+) -> Result<Vec<PathBuf>> {
     let command_files = find_command_files(current_dir)?;
     if command_files.is_empty() {
         return Ok(Vec::new());
@@ -53,7 +57,10 @@ pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<V
     let mut created_symlinks = Vec::new();
 
     for command_file in command_files {
-        let symlink_name = format!("{}-{}.md", command_file.name, GENERATED_COMMAND_SUFFIX);
+        let symlink_name = format!(
+            "{}-{}.{}",
+            command_file.name, GENERATED_COMMAND_SUFFIX, extension
+        );
         let from_path = PathBuf::from(target_dir).join(&symlink_name);
         let relative_source = calculate_relative_path(&from_path, &command_file.relative_path);
         let symlink_path = current_dir.join(&from_path);
@@ -66,7 +73,11 @@ pub fn create_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<V
 }
 
 /// Removes generated command symlinks from target directory
-pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -> Result<()> {
+pub fn remove_generated_command_symlinks_with_extension(
+    current_dir: &Path,
+    target_dir: &str,
+    extension: &str,
+) -> Result<()> {
     use std::fs;
 
     let target_path = current_dir.join(target_dir);
@@ -80,7 +91,7 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 
         if let Some(file_name) = path.file_name() {
             if let Some(name_str) = file_name.to_str() {
-                let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                let suffix_pattern = format!("-{}.{}", GENERATED_COMMAND_SUFFIX, extension);
                 if name_str.ends_with(&suffix_pattern) && path.is_symlink() {
                     fs::remove_file(&path)?;
                 }
@@ -92,7 +103,11 @@ pub fn remove_generated_command_symlinks(current_dir: &Path, target_dir: &str) -
 }
 
 /// Checks if generated command symlinks are in sync
-pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Result<bool> {
+pub fn check_command_symlinks_in_sync_with_extension(
+    current_dir: &Path,
+    target_dir: &str,
+    extension: &str,
+) -> Result<bool> {
     use std::fs;
 
     let command_files = find_command_files(current_dir)?;
@@ -109,7 +124,7 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
-                    let suffix_pattern = format!("-{}.md", GENERATED_COMMAND_SUFFIX);
+                    let suffix_pattern = format!("-{}.{}", GENERATED_COMMAND_SUFFIX, extension);
                     if name_str.ends_with(&suffix_pattern) && path.is_symlink() {
                         return Ok(false);
                     }
@@ -120,7 +135,10 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
     }
 
     for command_file in command_files {
-        let symlink_name = format!("{}-{}.md", command_file.name, GENERATED_COMMAND_SUFFIX);
+        let symlink_name = format!(
+            "{}-{}.{}",
+            command_file.name, GENERATED_COMMAND_SUFFIX, extension
+        );
         let symlink_path = target_path.join(&symlink_name);
 
         if !symlink_path.is_symlink() {
@@ -150,8 +168,14 @@ pub fn check_command_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> R
 }
 
 /// Returns gitignore patterns for generated command symlinks
-pub fn get_command_gitignore_patterns(target_dir: &str) -> Vec<String> {
-    vec![format!("{}/*-{}.md", target_dir, GENERATED_COMMAND_SUFFIX)]
+pub fn get_command_gitignore_patterns_with_extension(
+    target_dir: &str,
+    extension: &str,
+) -> Vec<String> {
+    vec![format!(
+        "{}/*-{}.{}",
+        target_dir, GENERATED_COMMAND_SUFFIX, extension
+    )]
 }
 
 // === Subfolder-based command symlinks (for Claude) ===
@@ -303,7 +327,9 @@ mod tests {
         fs::write(commands_dir.join("commit.md"), "Commit command").unwrap();
         fs::write(commands_dir.join("review.md"), "Review command").unwrap();
 
-        let symlinks = create_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
+        let symlinks =
+            create_command_symlinks_with_extension(temp_dir.path(), ".claude/commands", "md")
+                .unwrap();
         assert_eq!(symlinks.len(), 2);
 
         let commit_symlink = temp_dir
@@ -323,12 +349,13 @@ mod tests {
         fs::create_dir_all(&commands_dir).unwrap();
         fs::write(commands_dir.join("test.md"), "Test").unwrap();
 
-        create_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
+        create_command_symlinks_with_extension(temp_dir.path(), ".claude/commands", "md").unwrap();
 
         let commands_path = temp_dir.path().join(".claude/commands");
         fs::write(commands_path.join("custom.md"), "User's custom command").unwrap();
 
-        remove_generated_command_symlinks(temp_dir.path(), ".claude/commands").unwrap();
+        remove_generated_command_symlinks_with_extension(temp_dir.path(), ".claude/commands", "md")
+            .unwrap();
 
         let generated = commands_path.join(format!("test-{}.md", GENERATED_COMMAND_SUFFIX));
         assert!(!generated.exists());
