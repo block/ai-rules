@@ -15,11 +15,8 @@ impl AgentToolRegistry {
     pub fn new() -> Self {
         let mut tools: HashMap<String, Box<dyn AgentRuleGenerator>> = HashMap::new();
 
-        let claude_generator: Box<dyn AgentRuleGenerator> =
-            Box::new(ClaudeGenerator::new("claude", "CLAUDE.md"));
-
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
-            claude_generator,
+            Box::new(ClaudeGenerator::new("claude", "CLAUDE.md")),
             Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
             Box::new(CursorGenerator::new()),
             Box::new(FirebenderGenerator),

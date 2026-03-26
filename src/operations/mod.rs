@@ -20,6 +20,6 @@ pub use legacy_cleaner::clean_legacy_agent_directories;
 #[allow(unused_imports)]
 pub use skills_reader::{
     check_skill_symlinks_in_sync, create_skill_symlinks, find_skill_folders,
-    get_skill_gitignore_patterns, remove_generated_skill_symlinks, SkillFolder,
+    get_skill_gitignore_patterns, remove_generated_skills, SkillFolder,
 };
 pub use source_reader::find_source_files;

@@ -1,7 +1,7 @@
 use crate::agents::skills_generator::SkillsGeneratorTrait;
 use crate::operations::skills_reader::{
     check_skill_symlinks_in_sync, create_skill_symlinks, get_skill_gitignore_patterns,
-    remove_generated_skill_symlinks,
+    remove_generated_skills,
 };
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ impl SkillsGeneratorTrait for ExternalSkillsGenerator {
     }
 
     fn clean_skills(&self, current_dir: &Path) -> Result<()> {
-        remove_generated_skill_symlinks(current_dir, &self.target_dir)
+        remove_generated_skills(current_dir, &self.target_dir)
     }
 
     fn check_skills(&self, current_dir: &Path) -> Result<bool> {

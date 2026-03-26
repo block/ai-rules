@@ -97,8 +97,7 @@ pub fn create_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec
     Ok(created_symlinks)
 }
 
-/// Removes generated skill symlinks and directories from target directory
-pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<()> {
+pub fn remove_generated_skills(current_dir: &Path, target_dir: &str) -> Result<()> {
     let target_path = current_dir.join(target_dir);
 
     if !target_path.exists() {
@@ -352,7 +351,7 @@ mod tests {
         fs::write(user_skill.join(SKILL_FILENAME), "user content").unwrap();
 
         // Remove generated symlinks
-        remove_generated_skill_symlinks(temp_dir.path(), ".claude/skills").unwrap();
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
 
         // Check generated symlink is gone
         let generated = temp_dir
@@ -383,7 +382,7 @@ mod tests {
         fs::create_dir_all(&user_skill).unwrap();
         fs::write(user_skill.join(SKILL_FILENAME), "user content").unwrap();
 
-        remove_generated_skill_symlinks(temp_dir.path(), ".claude/skills").unwrap();
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
 
         // Generated directory should be removed
         assert!(!generated_dir.exists());
@@ -554,7 +553,7 @@ mod tests {
         assert!(!broken_symlink.exists()); // exists() returns false for broken symlinks
 
         // Remove should clean up broken symlinks
-        remove_generated_skill_symlinks(temp_dir.path(), ".claude/skills").unwrap();
+        remove_generated_skills(temp_dir.path(), ".claude/skills").unwrap();
 
         // Broken symlink should be removed
         assert!(!broken_symlink.is_symlink());
