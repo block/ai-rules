@@ -9,9 +9,7 @@ pub const GENERATED_FILE_PREFIX: &str = "ai-rules-generated-";
 pub const GENERATED_COMMAND_SUFFIX: &str = "ai-rules";
 
 pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
-#[allow(dead_code)]
 pub const CODEX_SKILLS_DIR: &str = ".codex/skills";
-#[allow(dead_code)]
 pub const AMP_SKILLS_DIR: &str = ".agents/skills";
 pub const CURSOR_SKILLS_DIR: &str = ".cursor/skills";
 pub const FIREBENDER_SKILLS_DIR: &str = ".firebender/skills";

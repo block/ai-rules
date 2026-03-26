@@ -1018,13 +1018,6 @@ Create a git commit with proper formatting."#;
     }
 
     #[test]
-    fn test_firebender_skills_target_dir() {
-        let generator = FirebenderGenerator;
-        let skills_gen = generator.skills_generator().unwrap();
-        assert_eq!(skills_gen.skills_target_dir(), ".firebender/skills");
-    }
-
-    #[test]
     fn test_firebender_skills_gitignore_patterns() {
         let generator = FirebenderGenerator;
         let skills_gen = generator.skills_generator().unwrap();

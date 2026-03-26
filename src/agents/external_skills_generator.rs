@@ -6,13 +6,11 @@ use crate::operations::skills_reader::{
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-#[allow(dead_code)]
 pub struct ExternalSkillsGenerator {
     target_dir: String,
 }
 
 impl ExternalSkillsGenerator {
-    #[allow(dead_code)]
     pub fn new(target_dir: &str) -> Self {
         Self {
             target_dir: target_dir.to_string(),
@@ -21,10 +19,6 @@ impl ExternalSkillsGenerator {
 }
 
 impl SkillsGeneratorTrait for ExternalSkillsGenerator {
-    fn skills_target_dir(&self) -> &str {
-        &self.target_dir
-    }
-
     fn generate_skills(&self, current_dir: &Path) -> Result<Vec<PathBuf>> {
         create_skill_symlinks(current_dir, &self.target_dir)
     }
@@ -57,12 +51,6 @@ mod tests {
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(skill_dir.join(SKILL_FILENAME), content).unwrap();
         skill_dir
-    }
-
-    #[test]
-    fn test_external_skills_generator_target_dir() {
-        let generator = ExternalSkillsGenerator::new(".claude/skills");
-        assert_eq!(generator.skills_target_dir(), ".claude/skills");
     }
 
     #[test]

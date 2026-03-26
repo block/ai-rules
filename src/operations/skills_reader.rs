@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::constants::{AI_RULE_SOURCE_DIR, GENERATED_FILE_PREFIX, SKILLS_DIR, SKILL_FILENAME};
 use crate::utils::file_utils::{calculate_relative_path, create_relative_symlink};
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SkillFolder {
     pub name: String,
@@ -14,7 +13,6 @@ pub struct SkillFolder {
 }
 
 /// Finds all valid skill folders in ai-rules/skills/ directory
-#[allow(dead_code)]
 pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
     let skills_dir = current_dir.join(AI_RULE_SOURCE_DIR).join(SKILLS_DIR);
 
@@ -72,7 +70,6 @@ pub fn find_skill_folders(current_dir: &Path) -> Result<Vec<SkillFolder>> {
 }
 
 /// Creates symlinks for each skill folder in the target directory
-#[allow(dead_code)]
 pub fn create_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec<PathBuf>> {
     let skill_folders = find_skill_folders(current_dir)?;
 
@@ -101,7 +98,6 @@ pub fn create_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<Vec
 }
 
 /// Removes generated skill symlinks and directories from target directory
-#[allow(dead_code)]
 pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> Result<()> {
     let target_path = current_dir.join(target_dir);
 
@@ -130,7 +126,6 @@ pub fn remove_generated_skill_symlinks(current_dir: &Path, target_dir: &str) -> 
 }
 
 /// Checks if generated skill symlinks are in sync
-#[allow(dead_code)]
 pub fn check_skill_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Result<bool> {
     let skill_folders = find_skill_folders(current_dir)?;
     let target_path = current_dir.join(target_dir);
@@ -215,7 +210,6 @@ pub fn check_skill_symlinks_in_sync(current_dir: &Path, target_dir: &str) -> Res
 }
 
 /// Returns gitignore patterns for generated skill symlinks
-#[allow(dead_code)]
 pub fn get_skill_gitignore_patterns(target_dir: &str) -> Vec<String> {
     vec![format!("{}/{}*", target_dir, GENERATED_FILE_PREFIX)]
 }

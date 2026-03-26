@@ -50,7 +50,6 @@ pub trait AgentRuleGenerator {
     ///
     /// Agents that support skills (like Claude, Codex, AMP) should override this
     /// to return their skills generator. The default returns `None` (no skills support).
-    #[allow(dead_code)]
     fn skills_generator(&self) -> Option<Box<dyn SkillsGeneratorTrait>> {
         None
     }

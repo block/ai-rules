@@ -5,7 +5,6 @@ use std::path::Path;
 
 /// Legacy directory configurations for agents that migrated to AGENTS.md
 /// Each entry is (agent_dir, optional_rules_subdir)
-#[allow(dead_code)]
 const LEGACY_AGENT_DIRS: &[(&str, Option<&str>)] = &[
     (".roo", Some("rules")),
     (".clinerules", None),
@@ -14,7 +13,6 @@ const LEGACY_AGENT_DIRS: &[(&str, Option<&str>)] = &[
 
 /// Cleans up legacy generated files from agents that have migrated to AGENTS.md.
 /// Only removes files with the ai-rules-generated- prefix, then removes empty directories.
-#[allow(dead_code)]
 pub fn clean_legacy_agent_directories(current_dir: &Path) -> Result<()> {
     for (agent_dir, rules_subdir) in LEGACY_AGENT_DIRS {
         let rules_path = if let Some(subdir) = rules_subdir {
@@ -39,7 +37,6 @@ pub fn clean_legacy_agent_directories(current_dir: &Path) -> Result<()> {
 }
 
 /// Removes files with the ai-rules-generated- prefix from a directory
-#[allow(dead_code)]
 fn remove_generated_files_from_directory(dir: &Path) -> Result<()> {
     if !dir.exists() {
         return Ok(());
@@ -62,7 +59,6 @@ fn remove_generated_files_from_directory(dir: &Path) -> Result<()> {
 }
 
 /// Removes a directory only if it's empty
-#[allow(dead_code)]
 fn remove_directory_if_empty(dir: &Path) -> Result<()> {
     if !dir.exists() {
         return Ok(());

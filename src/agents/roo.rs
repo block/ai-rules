@@ -7,16 +7,13 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-#[allow(dead_code)] // Used in Phase 3 when integrated into registry
 const ROO_DIR: &str = ".roo";
 
 /// Roo generator that uses AGENTS.md (via SingleFileBasedGenerator) with MCP support
-#[allow(dead_code)] // Used in Phase 3 when integrated into registry
 pub struct RooGenerator {
     inner: SingleFileBasedGenerator,
 }
 
-#[allow(dead_code)] // Used in Phase 3 when integrated into registry
 impl RooGenerator {
     pub fn new() -> Self {
         Self {
