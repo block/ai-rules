@@ -44,8 +44,6 @@ monorepo/
 └── firebender.json               # Root Firebender config (generated)
 ```
 
-If you need Cursor's legacy `.cursor/rules/*.mdc` output instead, enable `use_cursor_rules: true` in `ai-rules/ai-rules-config.yaml`.
-
 ## Symlink Mode
 
 For simple projects with a single `AGENTS.md` file:
