@@ -81,8 +81,7 @@ mod tests {
         let generated_rule_path = "ai-rules/.generated-ai-rules/ai-rules-generated-example.md";
         assert_file_exists(project_path, generated_rule_path);
         assert_file_exists(project_path, "CLAUDE.md");
-        let cursor_rule_path = ".cursor/rules/ai-rules-generated-example.mdc";
-        assert_file_exists(project_path, cursor_rule_path);
+        assert_file_not_exists(project_path, ".cursor/rules/ai-rules-generated-example.mdc");
         assert_file_exists(project_path, AGENTS_MD_FILENAME);
         assert_file_exists(project_path, ".gitignore");
 

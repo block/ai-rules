@@ -217,6 +217,12 @@ Test rule content"#;
         );
         assert!(generate_result.is_ok());
 
+        create_file(
+            project_path,
+            ".cursor/rules/ai-rules-generated-test.mdc",
+            "stale cursor rules",
+        );
+
         let expected_files = [
             "CLAUDE.md",
             ".cursor/rules/ai-rules-generated-test.mdc",

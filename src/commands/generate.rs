@@ -201,7 +201,7 @@ Test rule content"#;
         );
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         assert_file_exists(temp_dir.path(), ".gitignore");
@@ -220,18 +220,6 @@ Test rule content"#;
 
         assert_file_content(
             temp_dir.path(),
-            ".cursor/rules/ai-rules-generated-test.mdc",
-            r#"---
-description: Test rule
-globs: **/*.ts
-alwaysApply: true
----
-
-Test rule content
-"#,
-        );
-        assert_file_content(
-            temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
             "Test rule content\n",
         );
@@ -239,10 +227,6 @@ Test rule content
         // Verify generated files have trailing newlines
         assert_file_has_trailing_newline(temp_dir.path(), "CLAUDE.md");
         assert_file_has_trailing_newline(temp_dir.path(), AGENTS_MD_FILENAME);
-        assert_file_has_trailing_newline(
-            temp_dir.path(),
-            ".cursor/rules/ai-rules-generated-test.mdc",
-        );
         assert_file_has_trailing_newline(
             temp_dir.path(),
             "ai-rules/.generated-ai-rules/ai-rules-generated-test.md",
@@ -293,8 +277,8 @@ Test rule content
         );
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
-        assert_file_not_exists(temp_dir.path(), AGENTS_MD_FILENAME);
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         assert_file_exists(temp_dir.path(), ".gitignore");
 
@@ -303,19 +287,10 @@ Test rule content
         assert!(claude_path.is_symlink(), "CLAUDE.md should be a symlink");
         let claude_content = std::fs::read_to_string(&claude_path).unwrap();
         assert_eq!(claude_content, "# Test rule\n\nTest rule content\n");
-
-        assert_file_content(
-            temp_dir.path(),
-            ".cursor/rules/ai-rules-generated-test.mdc",
-            r#"---
-description: Test rule
-globs: **/*.ts
-alwaysApply: true
----
-
-Test rule content
-"#,
-        );
+        let agents_path = temp_dir.path().join(AGENTS_MD_FILENAME);
+        assert!(agents_path.is_symlink(), "AGENTS.md should be a symlink");
+        let agents_content = std::fs::read_to_string(&agents_path).unwrap();
+        assert_eq!(agents_content, "# Test rule\n\nTest rule content\n");
     }
 
     #[test]
@@ -341,7 +316,8 @@ Test rule content
             "project1/ai-rules/.generated-ai-rules/ai-rules-generated-rule1.md",
         );
         assert_file_exists(temp_dir.path(), "project1/CLAUDE.md");
-        assert_file_exists(
+        assert_file_exists(temp_dir.path(), "project1/AGENTS.md");
+        assert_file_not_exists(
             temp_dir.path(),
             "project1/.cursor/rules/ai-rules-generated-rule1.mdc",
         );
@@ -351,7 +327,8 @@ Test rule content
             "project1/nested/project2/ai-rules/.generated-ai-rules/ai-rules-generated-rule2.md",
         );
         assert_file_exists(temp_dir.path(), "project1/nested/project2/CLAUDE.md");
-        assert_file_exists(
+        assert_file_exists(temp_dir.path(), "project1/nested/project2/AGENTS.md");
+        assert_file_not_exists(
             temp_dir.path(),
             "project1/nested/project2/.cursor/rules/ai-rules-generated-rule2.mdc",
         );
@@ -371,7 +348,7 @@ Test rule content
         // Check that gitignore contains patterns with ** prefix for subdirectory matching
         let gitignore_content =
             std::fs::read_to_string(temp_dir.path().join(".gitignore")).unwrap();
-        assert!(gitignore_content.contains("**/.cursor/rules/"));
+        assert!(!gitignore_content.contains("**/.cursor/rules/"));
         assert!(gitignore_content.contains("**/ai-rules/.generated-ai-rules"));
         assert!(gitignore_content.contains(&format!("**/{AGENTS_MD_FILENAME}")));
         assert!(gitignore_content.contains("**/CLAUDE.md"));
@@ -594,12 +571,7 @@ Test rule content
         let cursor_files = &generation_result.files_by_agent["cursor"];
 
         assert_eq!(claude_files[0], temp_dir.path().join("CLAUDE.md"));
-        assert_eq!(
-            cursor_files[0],
-            temp_dir
-                .path()
-                .join(".cursor/rules/ai-rules-generated-test.mdc")
-        );
+        assert_eq!(cursor_files[0], temp_dir.path().join(AGENTS_MD_FILENAME));
     }
 
     #[test]
@@ -722,7 +694,7 @@ Optional content"#,
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_not_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME); // Roo now uses AGENTS.md
 
         assert_file_exists(temp_dir.path(), ".mcp.json");
@@ -759,7 +731,7 @@ Optional content"#,
 
         // Agent files should be created
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
-        assert_file_exists(temp_dir.path(), ".cursor/rules/ai-rules-generated-test.mdc");
+        assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME);
 
         // MCP files should NOT be created
         assert_file_not_exists(temp_dir.path(), ".mcp.json");

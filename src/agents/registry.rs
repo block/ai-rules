@@ -25,7 +25,7 @@ impl AgentToolRegistry {
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
             claude_generator,
             Box::new(SingleFileBasedGenerator::new("cline", AGENTS_MD_FILENAME)),
-            Box::new(CursorGenerator),
+            Box::new(CursorGenerator::new()),
             Box::new(FirebenderGenerator),
             Box::new(SingleFileBasedGenerator::new("goose", AGENTS_MD_FILENAME)),
             Box::new(AmpGenerator),

@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/block/ai-rules/main/scripts/install
    ai-rules generate                            # All agents
    ai-rules generate --agents claude,cursor     # Specific agents
    ```
-   Creates `CLAUDE.md`, `.cursor/rules/*.mdc`, `AGENTS.md`, etc.
+   Creates `CLAUDE.md`, `AGENTS.md`, and other agent-specific files. Cursor uses `AGENTS.md`.
 
 4. **Check status** to ensure everything is in sync:
    ```bash

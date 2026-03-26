@@ -9,7 +9,7 @@
 | **Cline** | `.clinerules/AGENTS.md` -> inlined file | `.clinerules/AGENTS.md` -> `../ai-rules/AGENTS.md` | - | |
 | **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Copilot** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
-| **Cursor** | `.cursor/rules/*.mdc` | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | Symlink mode: only project root level |
+| **Cursor** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | |
 | **Firebender** | `firebender.json` | `firebender.json` (references `ai-rules/AGENTS.md`) | Embedded in `firebender.json` | Supports overlay files |
 | **Gemini** | `GEMINI.md` -> inlined file | `GEMINI.md` -> `ai-rules/AGENTS.md` | Embedded in `.gemini/settings.json` | |
 | **Goose** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |

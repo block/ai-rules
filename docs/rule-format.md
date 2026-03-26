@@ -28,7 +28,7 @@ All fields are optional:
 |-------|-------------|---------|
 | `description` | Context description that helps agents understand when to apply this rule if `alwaysApply` is `false` | - |
 | `alwaysApply` | `true` = referenced directly in agent rule files; `false` = included as optional rules based on context | `true` |
-| `fileMatching` | Glob patterns for which files this rule applies to (e.g., `"**/*.ts"`, `"src/**/*.py"`). Currently supported in Cursor. | - |
+| `fileMatching` | Glob patterns for which files this rule applies to (e.g., `"**/*.ts"`, `"src/**/*.py"`). Currently used for conditional rule matching in Firebender. | - |
 
 If frontmatter is omitted entirely, the file is treated as a regular markdown rule with default settings (`alwaysApply: true`).
 
@@ -38,7 +38,7 @@ In Standard Mode, `ai-rules generate` produces a single inlined file at `ai-rule
 
 Most agent output files (e.g., `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) are created as **symlinks** pointing to this inlined file. This ensures every agent reads the same complete content without needing `@` file expansion support.
 
-Cursor and Firebender generate their own formats (`.mdc` files and JSON respectively) and do not use the inlined file.
+Firebender generates its own JSON format and does not use the inlined file. Cursor uses the inlined `AGENTS.md` path.
 
 ## Symlink Mode
 
