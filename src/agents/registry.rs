@@ -12,15 +12,11 @@ pub struct AgentToolRegistry {
 }
 
 impl AgentToolRegistry {
-    pub fn new(use_claude_skills: bool) -> Self {
+    pub fn new() -> Self {
         let mut tools: HashMap<String, Box<dyn AgentRuleGenerator>> = HashMap::new();
 
-        // Claude now always uses ClaudeGenerator with skills_mode parameter
-        let claude_generator: Box<dyn AgentRuleGenerator> = Box::new(ClaudeGenerator::new(
-            "claude",
-            "CLAUDE.md",
-            use_claude_skills,
-        ));
+        let claude_generator: Box<dyn AgentRuleGenerator> =
+            Box::new(ClaudeGenerator::new("claude", "CLAUDE.md"));
 
         let generators: Vec<Box<dyn AgentRuleGenerator>> = vec![
             claude_generator,

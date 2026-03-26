@@ -20,15 +20,3 @@ Options are resolved in the following order (highest to lowest priority):
 1. **CLI options** - `--agents`, `--nested-depth`, `--no-gitignore`
 2. **Config file** - `ai-rules/ai-rules-config.yaml` (at current working directory)
 3. **Default values** - All agents, depth 0, generated files are NOT git ignored
-
-## Experimental Options
-
-### Claude Code Skills Mode
-
-```yaml
-use_claude_skills: true  # Default: false
-```
-
-Experimental toggle to test Claude Code's skills feature. When enabled, rules with `alwaysApply: false` are generated as separate skills in `.claude/skills/` instead of being included in `CLAUDE.md`. This allows Claude Code to selectively apply optional rules based on context.
-
-See [Commands and Skills](commands-and-skills.md) for more details on skills.

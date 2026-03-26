@@ -5,7 +5,7 @@
 | Agent | Standard Mode | Symlink Mode | MCP Support | Notes |
 |-------|---------------|--------------|-------------|-------|
 | **AMP** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
-| **Claude Code** | `CLAUDE.md` -> inlined file (+ `.claude/skills/` if configured) | `CLAUDE.md` -> `ai-rules/AGENTS.md` | `.mcp.json` | Skills support via `use_claude_skills` config |
+| **Claude Code** | `CLAUDE.md` -> inlined file | `CLAUDE.md` -> `ai-rules/AGENTS.md` | `.mcp.json` | |
 | **Cline** | `.clinerules/AGENTS.md` -> inlined file | `.clinerules/AGENTS.md` -> `../ai-rules/AGENTS.md` | - | |
 | **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Copilot** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |

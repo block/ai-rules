@@ -11,7 +11,6 @@ pub struct Config {
     pub gitignore: Option<bool>,
     pub no_gitignore: Option<bool>,
     pub nested_depth: Option<usize>,
-    pub use_claude_skills: Option<bool>,
 }
 
 pub fn load_config(current_dir: &Path) -> Result<Option<Config>> {
@@ -124,54 +123,6 @@ nested_depth: 1
 
         let result = load_config(temp_dir.path());
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_load_config_with_use_claude_skills() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["claude"]
-use_claude_skills: true
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert_eq!(config.agents, Some(vec!["claude".to_string()]));
-        assert_eq!(config.use_claude_skills, Some(true));
-    }
-
-    #[test]
-    fn test_load_config_use_claude_skills_false() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["claude"]
-use_claude_skills: false
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert_eq!(config.use_claude_skills, Some(false));
-    }
-
-    #[test]
-    fn test_load_config_without_use_claude_skills_defaults_to_none() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_content = r#"
-agents: ["claude"]
-"#;
-        create_config_file(temp_dir.path(), config_content);
-
-        let result = load_config(temp_dir.path()).unwrap();
-        assert!(result.is_some());
-        let config = result.unwrap();
-
-        assert!(config.use_claude_skills.is_none());
     }
 
     #[test]
