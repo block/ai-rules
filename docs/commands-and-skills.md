@@ -31,7 +31,7 @@ Command files support optional YAML frontmatter:
 | **AMP** | `.agents/commands/{name}-ai-rules.md` | Stripped |
 | **Claude Code** | `.claude/commands/ai-rules/*.md` | Preserved |
 | **Cursor** | `.cursor/commands/ai-rules/*.md` | Stripped |
-| **Firebender** | `firebender.json` (commands array) | Stripped |
+| **Firebender** | `.firebender/commands/{name}-ai-rules.mdc` | Preserved |
 
 ### Documentation
 
@@ -79,5 +79,6 @@ When you run `ai-rules generate`, symlinks are created:
 | Claude | `.claude/skills/ai-rules-generated-debugging` -> `../../ai-rules/skills/debugging` |
 | Codex | `.codex/skills/ai-rules-generated-debugging` -> `../../ai-rules/skills/debugging` |
 | Cursor | `.cursor/skills/ai-rules-generated-debugging` -> `../../ai-rules/skills/debugging` |
+| Firebender | `.agents/skills/ai-rules-generated-debugging` -> `../../ai-rules/skills/debugging` |
 
 Skill folders without a `SKILL.md` file are skipped with a warning.

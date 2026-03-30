@@ -9,8 +9,8 @@
 | **Cline** | `.clinerules/AGENTS.md` -> inlined file | `.clinerules/AGENTS.md` -> `../ai-rules/AGENTS.md` | - | |
 | **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Copilot** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
-| **Cursor** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | |
-| **Firebender** | `firebender.json` | `firebender.json` (references `ai-rules/AGENTS.md`) | Embedded in `firebender.json` | Supports overlay files |
+| **Cursor** | `.cursor/rules/*.mdc` | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | Symlink mode: only project root level |
+| **Firebender** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `firebender.json` | Commands live in `.firebender/`; skills reuse `.agents/skills`; overlay supported |
 | **Gemini** | `GEMINI.md` -> inlined file | `GEMINI.md` -> `ai-rules/AGENTS.md` | Embedded in `.gemini/settings.json` | |
 | **Goose** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Kilocode** | `.kilocode/rules/AGENTS.md` -> inlined file | `.kilocode/rules/AGENTS.md` -> `../../ai-rules/AGENTS.md` | - | |
@@ -22,5 +22,7 @@ Firebender supports overlay configuration files. To customize your configuration
 
 1. Create `ai-rules/firebender-overlay.json` in the same parent directory as your generated `firebender.json`
 2. Any values defined in the overlay file will be merged into the base configuration, with overlay values taking precedence
+
+`firebender.json` is generated as supplemental config when `ai-rules/mcp.json` and/or `ai-rules/firebender-overlay.json` exists.
 
 **MCP Integration:** If you have `ai-rules/mcp.json`, the MCP servers are merged into `firebender.json` first, then the overlay is applied. This allows you to override MCP configurations in the overlay if needed.

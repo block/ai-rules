@@ -12,13 +12,11 @@ pub const CLAUDE_SKILLS_DIR: &str = ".claude/skills";
 pub const CODEX_SKILLS_DIR: &str = ".codex/skills";
 pub const AMP_SKILLS_DIR: &str = ".agents/skills";
 pub const CURSOR_SKILLS_DIR: &str = ".cursor/skills";
-pub const FIREBENDER_SKILLS_DIR: &str = ".firebender/skills";
 pub const SKILL_FILENAME: &str = "SKILL.md";
 pub const SKILLS_DIR: &str = "skills";
 
 pub const FIREBENDER_JSON: &str = "firebender.json";
 pub const FIREBENDER_OVERLAY_JSON: &str = "firebender-overlay.json";
-pub const FIREBENDER_USE_CURSOR_RULES_FIELD: &str = "useCursorRules";
 
 pub const MCP_JSON: &str = "mcp.json";
 pub const CLAUDE_MCP_JSON: &str = ".mcp.json";
@@ -30,6 +28,7 @@ pub const CLAUDE_COMMANDS_SUBDIR: &str = "ai-rules";
 pub const CURSOR_COMMANDS_DIR: &str = ".cursor/commands";
 pub const CURSOR_COMMANDS_SUBDIR: &str = "ai-rules";
 pub const AMP_COMMANDS_DIR: &str = ".agents/commands";
+pub const FIREBENDER_COMMANDS_DIR: &str = ".firebender/commands";
 
 // Embedded template content (compile-time inclusion)
 pub const OPTIONAL_RULES_TEMPLATE: &str = include_str!("templates/optional_rules.md");

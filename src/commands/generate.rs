@@ -713,6 +713,7 @@ New body content"#;
         let result = run_generate(temp_dir.path(), args);
         assert!(result.is_ok());
 
+        assert_file_exists(temp_dir.path(), "AGENTS.md");
         assert_file_exists(temp_dir.path(), "firebender.json");
 
         assert_file_not_exists(temp_dir.path(), ".mcp.json");
