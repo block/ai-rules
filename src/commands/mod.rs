@@ -90,6 +90,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            json: false,
         };
         let status_result = check_project_status(project_path, status_args).unwrap();
         assert!(status_result.has_ai_rules);
@@ -107,6 +108,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            json: false,
         };
         let status_after_change = check_project_status(project_path, status_args).unwrap();
         assert!(status_after_change.has_ai_rules);
@@ -177,6 +179,7 @@ mod tests {
             agents: None,
             command_agents: None,
             nested_depth,
+            json: false,
         };
         let status_after_change = check_project_status(project_path, status_args).unwrap();
         assert!(status_after_change.has_ai_rules);

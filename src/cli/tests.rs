@@ -145,6 +145,7 @@ fn test_status_args_with_config_cli_priority() {
         nested_depth_args: NestedDepthArgs {
             nested_depth: Some(2),
         },
+        json: false,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -166,6 +167,7 @@ fn test_status_args_with_config_uses_config_when_cli_missing() {
     let args = StatusArgs {
         agents: None,
         nested_depth_args: NestedDepthArgs { nested_depth: None },
+        json: false,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -179,6 +181,7 @@ fn test_status_args_with_config_defaults() {
     let args = StatusArgs {
         agents: None,
         nested_depth_args: NestedDepthArgs { nested_depth: None },
+        json: false,
     };
 
     let resolved = args.with_config(None);
