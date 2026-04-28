@@ -6,14 +6,52 @@ use crate::operations::body_generator::generated_body_file_dir;
 use crate::operations::source_reader::detect_symlink_mode;
 use crate::utils::file_utils;
 use anyhow::Result;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct ProjectStatus {
     pub body_files_out_of_sync: bool,
     pub agent_statuses: HashMap<String, bool>,
     pub has_ai_rules: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct StatusJsonOutput<'a> {
+    pub has_ai_rules: bool,
+    pub body_files_out_of_sync: bool,
+    pub agent_statuses: &'a HashMap<String, bool>,
+    pub summary: &'static str,
+    pub out_of_sync_agents: Vec<&'a String>,
+}
+
+impl<'a> StatusJsonOutput<'a> {
+    fn from_status(status: &'a ProjectStatus) -> Self {
+        let summary = if !status.has_ai_rules {
+            "no_rules"
+        } else if status.body_files_out_of_sync
+            || status.agent_statuses.values().any(|&in_sync| !in_sync)
+        {
+            "out_of_sync"
+        } else {
+            "in_sync"
+        };
+        let mut out_of_sync_agents: Vec<&String> = status
+            .agent_statuses
+            .iter()
+            .filter(|(_, &in_sync)| !in_sync)
+            .map(|(agent, _)| agent)
+            .collect();
+        out_of_sync_agents.sort(); // deterministic output
+        Self {
+            has_ai_rules: status.has_ai_rules,
+            body_files_out_of_sync: status.body_files_out_of_sync,
+            agent_statuses: &status.agent_statuses,
+            summary,
+            out_of_sync_agents,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -28,19 +66,41 @@ impl std::fmt::Display for BodyFilesOutOfSync {
 impl std::error::Error for BodyFilesOutOfSync {}
 
 pub fn run_status(current_dir: &Path, args: ResolvedStatusArgs) -> Result<()> {
-    println!(
-        "🔍 AI Rules Status for agents: {}, nested_depth: {}",
-        args.agents
-            .as_ref()
-            .map(|a| a.join(","))
-            .unwrap_or_else(|| "all".to_string()),
-        args.nested_depth
-    );
+    let emit_json = args.json;
+    if !emit_json {
+        println!(
+            "🔍 AI Rules Status for agents: {}, nested_depth: {}",
+            args.agents
+                .as_ref()
+                .map(|a| a.join(","))
+                .unwrap_or_else(|| "all".to_string()),
+            args.nested_depth
+        );
+    }
 
     let status = check_project_status(current_dir, args)?;
-    print_status_results(&status);
+    if emit_json {
+        print_status_results_json(&status);
+    } else {
+        print_status_results(&status);
+    }
 
     Ok(())
+}
+
+fn print_status_results_json(status: &ProjectStatus) {
+    let output = StatusJsonOutput::from_status(status);
+    let serialized = serde_json::to_string_pretty(&output)
+        .unwrap_or_else(|_| "{\"error\":\"failed to serialize status\"}".to_string());
+    println!("{serialized}");
+
+    // Same exit-code contract as the human output: 2 = no rules, 1 = drift, 0 = in sync.
+    if !status.has_ai_rules {
+        std::process::exit(2);
+    }
+    if status.body_files_out_of_sync || status.agent_statuses.values().any(|&in_sync| !in_sync) {
+        std::process::exit(1);
+    }
 }
 
 pub fn check_project_status(current_dir: &Path, args: ResolvedStatusArgs) -> Result<ProjectStatus> {
@@ -278,6 +338,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -298,6 +359,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -319,6 +381,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -346,6 +409,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -384,6 +448,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -420,6 +485,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -460,6 +526,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -473,6 +540,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: 1,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -505,6 +573,7 @@ Test rule content"#;
             agents: None,
             command_agents: None,
             nested_depth: 1,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -539,6 +608,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -595,6 +665,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -622,6 +693,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -655,6 +727,7 @@ Test rule content"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -715,6 +788,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -761,6 +835,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -810,6 +885,7 @@ Test command body"#;
             agents: Some(vec!["amp".to_string()]),
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -854,6 +930,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -904,6 +981,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -942,6 +1020,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -976,6 +1055,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -1018,6 +1098,7 @@ Test command body"#;
             agents: Some(vec!["claude".to_string()]),
             command_agents: None,
             nested_depth: NESTED_DEPTH,
+            json: false,
         };
         let result = check_project_status(temp_dir.path(), args);
         assert!(result.is_ok());
@@ -1028,5 +1109,69 @@ Test command body"#;
 
         // Claude should be out of sync because orphaned symlinks exist
         assert!(!status.agent_statuses["claude"]);
+    }
+
+    #[test]
+    fn test_status_json_output_shape_in_sync() {
+        let status = ProjectStatus {
+            has_ai_rules: true,
+            body_files_out_of_sync: false,
+            agent_statuses: HashMap::from([
+                ("claude".to_string(), true),
+                ("cursor".to_string(), true),
+            ]),
+        };
+        let output = StatusJsonOutput::from_status(&status);
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["summary"], "in_sync");
+        assert_eq!(json["has_ai_rules"], true);
+        assert_eq!(json["body_files_out_of_sync"], false);
+        assert_eq!(json["out_of_sync_agents"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_status_json_output_shape_out_of_sync() {
+        let status = ProjectStatus {
+            has_ai_rules: true,
+            body_files_out_of_sync: false,
+            agent_statuses: HashMap::from([
+                ("claude".to_string(), true),
+                ("cursor".to_string(), false),
+                ("codex".to_string(), false),
+            ]),
+        };
+        let output = StatusJsonOutput::from_status(&status);
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["summary"], "out_of_sync");
+        let out_of_sync = json["out_of_sync_agents"].as_array().unwrap();
+        assert_eq!(out_of_sync.len(), 2);
+        // Sorted for determinism
+        assert_eq!(out_of_sync[0], "codex");
+        assert_eq!(out_of_sync[1], "cursor");
+    }
+
+    #[test]
+    fn test_status_json_output_shape_no_rules() {
+        let status = ProjectStatus {
+            has_ai_rules: false,
+            body_files_out_of_sync: false,
+            agent_statuses: HashMap::new(),
+        };
+        let output = StatusJsonOutput::from_status(&status);
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["summary"], "no_rules");
+    }
+
+    #[test]
+    fn test_status_json_body_files_out_of_sync_flips_summary() {
+        let status = ProjectStatus {
+            has_ai_rules: true,
+            body_files_out_of_sync: true,
+            agent_statuses: HashMap::from([("claude".to_string(), true)]),
+        };
+        let output = StatusJsonOutput::from_status(&status);
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["summary"], "out_of_sync");
+        assert_eq!(json["body_files_out_of_sync"], true);
     }
 }

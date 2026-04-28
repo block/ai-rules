@@ -69,6 +69,7 @@ impl StatusArgs {
             agents,
             command_agents,
             nested_depth,
+            json: self.json,
         }
     }
 }

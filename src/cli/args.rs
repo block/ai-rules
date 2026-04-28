@@ -97,6 +97,11 @@ pub struct StatusArgs {
     pub agents: Option<Vec<String>>,
     #[command(flatten)]
     pub nested_depth_args: NestedDepthArgs,
+    #[arg(
+        long,
+        help = "Emit machine-readable JSON instead of the default Rich-text summary"
+    )]
+    pub json: bool,
 }
 
 #[derive(Args)]
@@ -126,4 +131,5 @@ pub struct ResolvedStatusArgs {
     pub agents: Option<Vec<String>>,
     pub command_agents: Option<Vec<String>>,
     pub nested_depth: usize,
+    pub json: bool,
 }
