@@ -205,6 +205,7 @@ Test rule content"#;
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec![
                     "claude".to_string(),
+                    "codex".to_string(),
                     "cursor".to_string(),
                     "roo".to_string(),
                 ]),
@@ -226,6 +227,7 @@ Test rule content"#;
             ".cursor/rules/ai-rules-generated-test.mdc",
             AGENTS_MD_FILENAME,
             ".mcp.json",
+            ".codex/config.toml",
             ".cursor/mcp.json",
             ".roo/mcp.json",
         ];

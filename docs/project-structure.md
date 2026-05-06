@@ -44,6 +44,8 @@ monorepo/
 │   ├── commands/                 # Firebender commands (generated symlinks)
 ├── .agents/
 │   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
+├── .codex/
+│   └── config.toml               # Codex MCP config (generated block, if mcp.json exists)
 ├── .mcp.json                     # Root MCP config (generated)
 └── firebender.json               # Root Firebender supplemental config (generated when needed)
 ```
@@ -70,6 +72,8 @@ project/
 │   ├── commands/                 # Firebender commands (generated symlinks)
 ├── .agents/
 │   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
+├── .codex/
+│   └── config.toml               # Codex MCP config (if mcp.json exists)
 ├── firebender.json               # Supplemental Firebender config (if mcp.json or overlay exists)
 ├── .clinerules/
 │   └── AGENTS.md                 # Symlink -> ../ai-rules/AGENTS.md

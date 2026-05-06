@@ -7,7 +7,7 @@
 | **AMP** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Claude Code** | `CLAUDE.md` -> inlined file | `CLAUDE.md` -> `ai-rules/AGENTS.md` | `.mcp.json` | |
 | **Cline** | `.clinerules/AGENTS.md` -> inlined file | `.clinerules/AGENTS.md` -> `../ai-rules/AGENTS.md` | - | |
-| **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
+| **Codex** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.codex/config.toml` | Project-scoped config with generated MCP block |
 | **Copilot** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | - | |
 | **Cursor** | `.cursor/rules/*.mdc` | `AGENTS.md` -> `ai-rules/AGENTS.md` | `.cursor/mcp.json` | Symlink mode: only project root level |
 | **Firebender** | `AGENTS.md` -> inlined file | `AGENTS.md` -> `ai-rules/AGENTS.md` | `firebender.json` | Commands live in `.firebender/`; skills reuse `.agents/skills`; overlay supported |

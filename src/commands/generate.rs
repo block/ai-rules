@@ -642,6 +642,7 @@ New body content"#;
         let args = ResolvedGenerateArgs {
             agents: Some(vec![
                 "claude".to_string(),
+                "codex".to_string(),
                 "cursor".to_string(),
                 "roo".to_string(),
             ]),
@@ -657,11 +658,20 @@ New body content"#;
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME); // Roo now uses AGENTS.md
 
         assert_file_exists(temp_dir.path(), ".mcp.json");
+        assert_file_exists(temp_dir.path(), ".codex/config.toml");
         assert_file_exists(temp_dir.path(), ".cursor/mcp.json");
         assert_file_exists(temp_dir.path(), ".roo/mcp.json");
 
         let mcp_content = std::fs::read_to_string(temp_dir.path().join(".mcp.json")).unwrap();
         assert_eq!(mcp_content.trim(), TEST_MCP_CONFIG.trim());
+
+        let codex_mcp_content =
+            std::fs::read_to_string(temp_dir.path().join(".codex/config.toml")).unwrap();
+        assert!(codex_mcp_content.contains("[mcp_servers.\"test-server\"]"));
+        assert!(codex_mcp_content.contains("command = \"npx\""));
+        assert!(
+            codex_mcp_content.contains("args = [\"-y\", \"@modelcontextprotocol/server-test\"]")
+        );
 
         let cursor_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".cursor/mcp.json")).unwrap();
