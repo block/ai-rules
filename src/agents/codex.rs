@@ -5,21 +5,21 @@ use crate::agents::single_file_based::{
     check_in_sync, clean_generated_files, generate_agent_file_contents,
 };
 use crate::agents::skills_generator::SkillsGeneratorTrait;
-use crate::constants::{AGENTS_MD_FILENAME, CODEX_SKILLS_DIR};
+use crate::constants::{AGENTS_MD_FILENAME, AI_RULE_SOURCE_DIR, CODEX_SKILLS_DIR};
 use crate::models::SourceFile;
 use crate::operations::mcp_reader::{read_mcp_config, McpConfig, McpServerConfig};
 use crate::utils::file_utils::{
     check_agents_md_symlink, check_inlined_file_symlink, create_symlink_to_agents_md,
     create_symlink_to_inlined_file, ensure_trailing_newline,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use toml::{Table, Value};
 
 const CODEX_CONFIG_TOML: &str = ".codex/config.toml";
-const MCP_GENERATED_START: &str = "# AI Rules MCP - Generated Servers";
-const MCP_GENERATED_END: &str = "# End AI Rules MCP";
+const CODEX_CONFIG_OVERLAY_TOML: &str = "codex-config.toml";
 
 pub struct CodexGenerator {
     name: String,
@@ -118,73 +118,29 @@ impl McpGeneratorTrait for CodexMcpGenerator {
     fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
         let mut files = HashMap::new();
 
-        let source_mcp_content = match read_mcp_config(current_dir) {
-            Ok(Some(content)) => content,
-            _ => return files,
-        };
-
-        let source_config: McpConfig = match serde_json::from_str(&source_mcp_content) {
-            Ok(config) => config,
-            Err(_) => return files,
-        };
-
-        let target_path = current_dir.join(CODEX_CONFIG_TOML);
-        let existing_content = fs::read_to_string(&target_path).unwrap_or_default();
-        let base_content = remove_generated_mcp_block(&existing_content);
-
-        let generated_block = generate_codex_mcp_block(&source_config);
-        if generated_block.is_empty() && base_content.trim().is_empty() {
-            return files;
+        if let Ok(Some(config)) = generate_codex_config(current_dir) {
+            files.insert(current_dir.join(CODEX_CONFIG_TOML), config);
         }
 
-        let content = merge_generated_mcp_block(&base_content, &generated_block);
-        files.insert(target_path, content);
         files
     }
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()> {
         let target_path = current_dir.join(CODEX_CONFIG_TOML);
-        if !target_path.exists() {
-            return Ok(());
+        if target_path.exists() {
+            fs::remove_file(&target_path)
+                .with_context(|| format!("Failed to remove {}", target_path.display()))?;
         }
-
-        let content = fs::read_to_string(&target_path)?;
-        let cleaned = remove_generated_mcp_block(&content);
-        if cleaned.trim().is_empty() {
-            fs::remove_file(target_path)?;
-        } else if cleaned != content {
-            fs::write(target_path, ensure_trailing_newline(cleaned))?;
-        }
-
         Ok(())
     }
 
     fn check_mcp(&self, current_dir: &Path) -> Result<bool> {
         let target_path = current_dir.join(CODEX_CONFIG_TOML);
 
-        let source_mcp_content = match read_mcp_config(current_dir)? {
-            Some(content) => content,
-            None => {
-                if !target_path.exists() {
-                    return Ok(true);
-                }
-
-                let content = fs::read_to_string(&target_path)?;
-                return Ok(!content.contains(MCP_GENERATED_START));
-            }
-        };
-
-        if !target_path.exists() {
-            return Ok(false);
+        match generate_codex_config(current_dir)? {
+            Some(expected_content) => file_matches_expected(&target_path, &expected_content),
+            None => Ok(!target_path.exists()),
         }
-
-        let source_config: McpConfig = serde_json::from_str(&source_mcp_content)?;
-        let actual = fs::read_to_string(&target_path)?;
-        let base_content = remove_generated_mcp_block(&actual);
-        let expected =
-            merge_generated_mcp_block(&base_content, &generate_codex_mcp_block(&source_config));
-
-        Ok(actual == expected)
     }
 
     fn mcp_gitignore_patterns(&self) -> Vec<String> {
@@ -196,55 +152,50 @@ impl McpGeneratorTrait for CodexMcpGenerator {
     }
 }
 
-fn remove_generated_mcp_block(content: &str) -> String {
-    let Some(start) = content.find(MCP_GENERATED_START) else {
-        return content.to_string();
-    };
-    let Some(relative_end) = content[start..].find(MCP_GENERATED_END) else {
-        return content.to_string();
-    };
+fn generate_codex_config(current_dir: &Path) -> Result<Option<String>> {
+    let mut codex_config = Value::Table(Table::new());
+    let mut has_content = false;
 
-    let end = start + relative_end + MCP_GENERATED_END.len();
-    let mut result = content.to_string();
+    if let Some(source_mcp_content) = read_mcp_config(current_dir)? {
+        let source_config: McpConfig = serde_json::from_str(&source_mcp_content)?;
+        if let Some(config_table) = codex_config.as_table_mut() {
+            config_table.insert(
+                "mcp_servers".to_string(),
+                Value::Table(generate_codex_mcp_servers_table(&source_config)),
+            );
+        }
+        has_content = true;
+    }
 
-    let range_start = start.saturating_sub(if start > 0 && result.as_bytes()[start - 1] == b'\n' {
-        1
-    } else {
-        0
-    });
-    let range_end = if result.as_bytes().get(end) == Some(&b'\n') {
-        end + 1
-    } else {
-        end
-    };
+    let overlay_path = current_dir
+        .join(AI_RULE_SOURCE_DIR)
+        .join(CODEX_CONFIG_OVERLAY_TOML);
+    if overlay_path.exists() {
+        let overlay_content = fs::read_to_string(&overlay_path)
+            .with_context(|| format!("Failed to read overlay file: {}", overlay_path.display()))?;
 
-    result.replace_range(range_start..range_end, "");
-    result.trim_end().to_string()
+        let overlay_config: Value = overlay_content
+            .parse()
+            .with_context(|| format!("Invalid TOML in overlay file: {}", overlay_path.display()))?;
+
+        merge_toml_values(&mut codex_config, &overlay_config);
+        has_content = true;
+    }
+
+    if !has_content {
+        return Ok(None);
+    }
+
+    let toml_string = toml::to_string_pretty(&codex_config)
+        .with_context(|| "Failed to serialize Codex configuration to TOML")?;
+    Ok(Some(ensure_trailing_newline(toml_string)))
 }
 
-fn merge_generated_mcp_block(base_content: &str, generated_block: &str) -> String {
-    if generated_block.is_empty() {
-        return ensure_trailing_newline(base_content.trim_end().to_string());
-    }
-
-    let mut content = base_content.trim_end().to_string();
-    if !content.is_empty() {
-        content.push_str("\n\n");
-    }
-    content.push_str(generated_block);
-    ensure_trailing_newline(content)
-}
-
-fn generate_codex_mcp_block(config: &McpConfig) -> String {
-    if config.mcp_servers.is_empty() {
-        return String::new();
-    }
+fn generate_codex_mcp_servers_table(config: &McpConfig) -> Table {
+    let mut mcp_servers = Table::new();
 
     let mut server_names: Vec<_> = config.mcp_servers.keys().collect();
     server_names.sort();
-
-    let mut block = String::from(MCP_GENERATED_START);
-    block.push('\n');
 
     for server_name in server_names {
         let server_config = config
@@ -252,77 +203,75 @@ fn generate_codex_mcp_block(config: &McpConfig) -> String {
             .get(server_name)
             .expect("server name came from mcp_servers keys");
 
-        block.push('\n');
-        block.push_str(&format!("[mcp_servers.{}]\n", toml_quoted_key(server_name)));
+        let mut server_table = Table::new();
 
         match server_config {
             McpServerConfig::Command { command, args, env } => {
-                block.push_str(&format!("command = {}\n", toml_string(command)));
+                server_table.insert("command".to_string(), Value::String(command.clone()));
                 if let Some(args) = args {
-                    block.push_str(&format!("args = {}\n", toml_string_array(args)));
+                    server_table.insert(
+                        "args".to_string(),
+                        Value::Array(args.iter().cloned().map(Value::String).collect()),
+                    );
                 }
                 if let Some(env) = env {
-                    append_toml_string_table(&mut block, server_name, "env", env);
+                    server_table.insert("env".to_string(), Value::Table(string_map_to_table(env)));
                 }
             }
             McpServerConfig::Http { url, headers, .. } => {
-                block.push_str(&format!("url = {}\n", toml_string(url)));
+                server_table.insert("url".to_string(), Value::String(url.clone()));
                 if let Some(headers) = headers {
-                    append_toml_string_table(&mut block, server_name, "http_headers", headers);
+                    server_table.insert(
+                        "http_headers".to_string(),
+                        Value::Table(string_map_to_table(headers)),
+                    );
+                }
+            }
+        }
+
+        mcp_servers.insert(server_name.clone(), Value::Table(server_table));
+    }
+
+    mcp_servers
+}
+
+fn string_map_to_table(values: &HashMap<String, String>) -> Table {
+    let mut table = Table::new();
+    let mut keys: Vec<_> = values.keys().collect();
+    keys.sort();
+
+    for key in keys {
+        let value = values.get(key).expect("value key came from values keys");
+        table.insert(key.clone(), Value::String(value.clone()));
+    }
+
+    table
+}
+
+fn merge_toml_values(base: &mut Value, overlay: &Value) {
+    if let (Some(base_table), Some(overlay_table)) = (base.as_table_mut(), overlay.as_table()) {
+        for (key, value) in overlay_table {
+            match base_table.get_mut(key) {
+                Some(base_value) if base_value.is_table() && value.is_table() => {
+                    merge_toml_values(base_value, value);
+                }
+                _ => {
+                    base_table.insert(key.clone(), value.clone());
                 }
             }
         }
     }
-
-    block.push('\n');
-    block.push_str(MCP_GENERATED_END);
-    block
 }
 
-fn append_toml_string_table(
-    block: &mut String,
-    server_name: &str,
-    table_name: &str,
-    values: &HashMap<String, String>,
-) {
-    if values.is_empty() {
-        return;
+fn file_matches_expected(file_path: &Path, expected_content: &str) -> Result<bool> {
+    if !file_path.exists() {
+        return Ok(false);
     }
 
-    block.push('\n');
-    block.push_str(&format!(
-        "[mcp_servers.{}.{}]\n",
-        toml_quoted_key(server_name),
-        table_name
-    ));
+    let actual_content = fs::read_to_string(file_path)
+        .with_context(|| format!("Failed to read {}", file_path.display()))?;
 
-    let mut keys: Vec<_> = values.keys().collect();
-    keys.sort();
-    for key in keys {
-        let value = values.get(key).expect("value key came from values keys");
-        block.push_str(&format!(
-            "{} = {}\n",
-            toml_quoted_key(key),
-            toml_string(value)
-        ));
-    }
-}
-
-fn toml_string(value: &str) -> String {
-    serde_json::to_string(value).expect("serializing a string should not fail")
-}
-
-fn toml_string_array(values: &[String]) -> String {
-    let values = values
-        .iter()
-        .map(|value| toml_string(value))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("[{values}]")
-}
-
-fn toml_quoted_key(value: &str) -> String {
-    toml_string(value)
+    Ok(actual_content == expected_content)
 }
 
 #[cfg(test)]
@@ -494,13 +443,19 @@ mod tests {
 
         let expected_path = temp_dir.path().join(".codex/config.toml");
         let content = files.get(&expected_path).unwrap();
+        let parsed: Value = content.parse().unwrap();
+        let test_server = &parsed["mcp_servers"]["test-server"];
 
-        assert!(content.contains(MCP_GENERATED_START));
-        assert!(content.contains("[mcp_servers.\"test-server\"]"));
-        assert!(content.contains("command = \"npx\""));
-        assert!(content.contains("args = [\"-y\", \"@modelcontextprotocol/server-test\"]"));
-        assert!(content.contains("[mcp_servers.\"test-server\".env]"));
-        assert!(content.contains("\"API_KEY\" = \"${API_KEY}\""));
+        assert_eq!(test_server["command"].as_str(), Some("npx"));
+        assert_eq!(
+            test_server["args"].as_array().unwrap()[0].as_str(),
+            Some("-y")
+        );
+        assert_eq!(
+            test_server["args"].as_array().unwrap()[1].as_str(),
+            Some("@modelcontextprotocol/server-test")
+        );
+        assert_eq!(test_server["env"]["API_KEY"].as_str(), Some("${API_KEY}"));
     }
 
     #[test]
@@ -515,25 +470,35 @@ mod tests {
 
         let expected_path = temp_dir.path().join(".codex/config.toml");
         let content = files.get(&expected_path).unwrap();
+        let parsed: Value = content.parse().unwrap();
+        let figma = &parsed["mcp_servers"]["figma"];
 
-        assert!(content.contains("[mcp_servers.\"figma\"]"));
-        assert!(content.contains("url = \"https://mcp.figma.com/mcp\""));
-        assert!(content.contains("[mcp_servers.\"figma\".http_headers]"));
-        assert!(content.contains("\"X-Figma-Region\" = \"us-east-1\""));
-        assert!(!content.contains("type = \"http\""));
-        assert!(!content.contains("headers ="));
+        assert_eq!(figma["url"].as_str(), Some("https://mcp.figma.com/mcp"));
+        assert_eq!(
+            figma["http_headers"]["X-Figma-Region"].as_str(),
+            Some("us-east-1")
+        );
+        assert!(figma.get("type").is_none());
+        assert!(figma.get("headers").is_none());
     }
 
     #[test]
-    fn test_codex_mcp_generator_preserves_existing_config() {
+    fn test_codex_mcp_generator_merges_overlay_with_mcp() {
         let temp_dir = TempDir::new().unwrap();
         let generator = CodexGenerator::new();
 
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
         create_file(
             temp_dir.path(),
-            ".codex/config.toml",
-            "model = \"gpt-5.2\"\n\n[mcp_servers.user]\ncommand = \"custom\"\n",
+            "ai-rules/codex-config.toml",
+            r#"model = "gpt-5.2"
+
+[mcp_servers."test-server"]
+command = "python"
+
+[mcp_servers.user]
+command = "custom"
+"#,
         );
 
         let mcp_gen = generator.mcp_generator().unwrap();
@@ -541,34 +506,70 @@ mod tests {
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();
+        let parsed: Value = content.parse().unwrap();
 
-        assert!(content.contains("model = \"gpt-5.2\""));
-        assert!(content.contains("[mcp_servers.user]"));
-        assert!(content.contains("command = \"custom\""));
-        assert!(content.contains("[mcp_servers.\"test-server\"]"));
+        assert_eq!(parsed["model"].as_str(), Some("gpt-5.2"));
+        assert_eq!(
+            parsed["mcp_servers"]["test-server"]["command"].as_str(),
+            Some("python")
+        );
+        assert_eq!(
+            parsed["mcp_servers"]["test-server"]["args"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("-y")
+        );
+        assert_eq!(
+            parsed["mcp_servers"]["user"]["command"].as_str(),
+            Some("custom")
+        );
     }
 
     #[test]
-    fn test_codex_mcp_generator_clean_removes_only_generated_block() {
+    fn test_codex_mcp_generator_overlay_only() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = CodexGenerator::new();
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/codex-config.toml",
+            r#"model = "gpt-5.2"
+
+[mcp_servers.user]
+command = "custom"
+"#,
+        );
+
+        let mcp_gen = generator.mcp_generator().unwrap();
+        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let content = files
+            .get(&temp_dir.path().join(".codex/config.toml"))
+            .unwrap();
+        let parsed: Value = content.parse().unwrap();
+
+        assert_eq!(parsed["model"].as_str(), Some("gpt-5.2"));
+        assert_eq!(
+            parsed["mcp_servers"]["user"]["command"].as_str(),
+            Some("custom")
+        );
+    }
+
+    #[test]
+    fn test_codex_mcp_generator_clean_removes_config() {
         let temp_dir = TempDir::new().unwrap();
         let generator = CodexGenerator::new();
         let mcp_gen = generator.mcp_generator().unwrap();
 
-        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
-        let files = mcp_gen.generate_mcp(temp_dir.path());
-        let generated = files
-            .get(&temp_dir.path().join(".codex/config.toml"))
-            .unwrap();
         create_file(
             temp_dir.path(),
             ".codex/config.toml",
-            &format!("model = \"gpt-5.2\"\n\n{generated}"),
+            "model = \"gpt-5.2\"\n\n[mcp_servers.user]\ncommand = \"custom\"\n",
         );
 
         mcp_gen.clean_mcp(temp_dir.path()).unwrap();
 
-        let content = std::fs::read_to_string(temp_dir.path().join(".codex/config.toml")).unwrap();
-        assert_eq!(content, "model = \"gpt-5.2\"\n");
+        assert!(!temp_dir.path().join(".codex/config.toml").exists());
     }
 
     #[test]
@@ -612,9 +613,43 @@ mod tests {
         create_file(
             temp_dir.path(),
             ".codex/config.toml",
-            "# AI Rules MCP - Generated Servers\n\n[mcp_servers.\"test-server\"]\ncommand = \"npx\"\n# End AI Rules MCP\n",
+            "[mcp_servers.\"test-server\"]\ncommand = \"npx\"\n",
         );
 
         assert!(!mcp_gen.check_mcp(temp_dir.path()).unwrap());
+    }
+
+    #[test]
+    fn test_codex_mcp_generator_overlay_collision_writes_valid_toml() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = CodexGenerator::new();
+        let mcp_gen = generator.mcp_generator().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/codex-config.toml",
+            r#"[mcp_servers."test-server"]
+command = "custom"
+"#,
+        );
+
+        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let content = files
+            .get(&temp_dir.path().join(".codex/config.toml"))
+            .unwrap();
+        let parsed: Value = content.parse().unwrap();
+
+        assert_eq!(
+            parsed["mcp_servers"]["test-server"]["command"].as_str(),
+            Some("custom")
+        );
+        assert_eq!(
+            parsed["mcp_servers"]["test-server"]["args"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("-y")
+        );
     }
 }

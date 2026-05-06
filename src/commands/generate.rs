@@ -667,10 +667,17 @@ New body content"#;
 
         let codex_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".codex/config.toml")).unwrap();
-        assert!(codex_mcp_content.contains("[mcp_servers.\"test-server\"]"));
-        assert!(codex_mcp_content.contains("command = \"npx\""));
-        assert!(
-            codex_mcp_content.contains("args = [\"-y\", \"@modelcontextprotocol/server-test\"]")
+        let codex_mcp: toml::Value = codex_mcp_content.parse().unwrap();
+        assert_eq!(
+            codex_mcp["mcp_servers"]["test-server"]["command"].as_str(),
+            Some("npx")
+        );
+        assert_eq!(
+            codex_mcp["mcp_servers"]["test-server"]["args"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("-y")
         );
 
         let cursor_mcp_content =

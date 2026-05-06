@@ -41,4 +41,4 @@ See the [Supported Agents](agents.md) table for which agents support MCP and the
 | Gemini | Embedded in `.gemini/settings.json` |
 | Roo | `.roo/mcp.json` |
 
-Codex uses TOML instead of JSON. `ai-rules generate` converts the shared `ai-rules/mcp.json` source into project-scoped `[mcp_servers.<name>]` tables inside a managed block in `.codex/config.toml`, preserving any content outside that block.
+Codex uses TOML instead of JSON. `ai-rules generate` converts the shared `ai-rules/mcp.json` source into project-scoped `[mcp_servers.<name>]` tables in `.codex/config.toml`. If `ai-rules/codex-config.toml` exists, it is merged over the generated config so projects can add or override Codex settings.
