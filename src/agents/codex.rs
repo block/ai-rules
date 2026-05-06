@@ -527,6 +527,38 @@ command = "custom"
     }
 
     #[test]
+    fn test_codex_mcp_generator_merges_nested_overlay_tables() {
+        let temp_dir = TempDir::new().unwrap();
+        let generator = CodexGenerator::new();
+
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/codex-config.toml",
+            r#"[mcp_servers."test-server".env]
+API_KEY = "override"
+NODE_ENV = "test"
+"#,
+        );
+
+        let mcp_gen = generator.mcp_generator().unwrap();
+        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let content = files
+            .get(&temp_dir.path().join(".codex/config.toml"))
+            .unwrap();
+        let parsed: Value = content.parse().unwrap();
+        let test_server = &parsed["mcp_servers"]["test-server"];
+
+        assert_eq!(test_server["command"].as_str(), Some("npx"));
+        assert_eq!(
+            test_server["args"].as_array().unwrap()[0].as_str(),
+            Some("-y")
+        );
+        assert_eq!(test_server["env"]["API_KEY"].as_str(), Some("override"));
+        assert_eq!(test_server["env"]["NODE_ENV"].as_str(), Some("test"));
+    }
+
+    #[test]
     fn test_codex_mcp_generator_overlay_only() {
         let temp_dir = TempDir::new().unwrap();
         let generator = CodexGenerator::new();
@@ -553,6 +585,20 @@ command = "custom"
             parsed["mcp_servers"]["user"]["command"].as_str(),
             Some("custom")
         );
+    }
+
+    #[test]
+    fn test_generate_codex_config_invalid_overlay_errors() {
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/codex-config.toml", "model =\n");
+
+        let result = generate_codex_config(temp_dir.path());
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid TOML in overlay file"));
     }
 
     #[test]
