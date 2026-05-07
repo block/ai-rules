@@ -40,5 +40,3 @@ See the [Supported Agents](agents.md) table for which agents support MCP and the
 | Firebender | `firebender.json` (generated when MCP and/or overlay config exists) |
 | Gemini | Embedded in `.gemini/settings.json` |
 | Roo | `.roo/mcp.json` |
-
-Codex uses TOML instead of JSON. `ai-rules generate` converts the shared `ai-rules/mcp.json` source into project-scoped `[mcp_servers.<name>]` tables in `.codex/config.toml`. If `ai-rules/codex-config.toml` exists, it is merged over the generated config so projects can add or override Codex settings.
