@@ -115,14 +115,14 @@ impl AgentRuleGenerator for CodexGenerator {
 struct CodexMcpGenerator;
 
 impl McpGeneratorTrait for CodexMcpGenerator {
-    fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
+    fn generate_mcp(&self, current_dir: &Path) -> Result<HashMap<PathBuf, String>> {
         let mut files = HashMap::new();
 
-        if let Ok(Some(config)) = generate_codex_config(current_dir) {
+        if let Some(config) = generate_codex_config(current_dir)? {
             files.insert(current_dir.join(CODEX_CONFIG_TOML), config);
         }
 
-        files
+        Ok(files)
     }
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()> {
@@ -439,7 +439,7 @@ mod tests {
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
 
         let expected_path = temp_dir.path().join(".codex/config.toml");
         let content = files.get(&expected_path).unwrap();
@@ -466,7 +466,7 @@ mod tests {
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_HTTP_MCP_CONFIG);
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
 
         let expected_path = temp_dir.path().join(".codex/config.toml");
         let content = files.get(&expected_path).unwrap();
@@ -502,7 +502,7 @@ command = "custom"
         );
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();
@@ -542,7 +542,7 @@ NODE_ENV = "test"
         );
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();
@@ -574,7 +574,7 @@ command = "custom"
         );
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();
@@ -625,7 +625,7 @@ command = "custom"
         let mcp_gen = generator.mcp_generator().unwrap();
 
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();
@@ -680,7 +680,7 @@ command = "custom"
 "#,
         );
 
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
         let content = files
             .get(&temp_dir.path().join(".codex/config.toml"))
             .unwrap();

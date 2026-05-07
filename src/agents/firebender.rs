@@ -108,14 +108,14 @@ impl AgentRuleGenerator for FirebenderGenerator {
 }
 
 impl McpGeneratorTrait for FirebenderConfigGenerator {
-    fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
+    fn generate_mcp(&self, current_dir: &Path) -> Result<HashMap<PathBuf, String>> {
         let mut files = HashMap::new();
 
-        if let Ok(Some(config)) = generate_firebender_config(current_dir) {
+        if let Some(config) = generate_firebender_config(current_dir)? {
             files.insert(current_dir.join(FIREBENDER_JSON), config);
         }
 
-        files
+        Ok(files)
     }
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()> {
@@ -382,7 +382,7 @@ mod tests {
 
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
 
         assert_eq!(files.len(), 1);
         let expected_path = temp_dir.path().join(FIREBENDER_JSON);
@@ -395,7 +395,7 @@ mod tests {
         let generator = FirebenderGenerator;
         let mcp_gen = generator.mcp_generator().unwrap();
 
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
 
         assert!(files.is_empty());
     }

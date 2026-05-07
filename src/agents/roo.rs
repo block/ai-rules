@@ -120,7 +120,7 @@ mod tests {
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
         let mcp_gen = generator.mcp_generator().unwrap();
-        let files = mcp_gen.generate_mcp(temp_dir.path());
+        let files = mcp_gen.generate_mcp(temp_dir.path()).unwrap();
 
         assert_eq!(files.len(), 1);
         let expected_path = temp_dir.path().join(".roo/mcp.json");
