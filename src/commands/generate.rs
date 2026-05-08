@@ -57,6 +57,19 @@ fn generate_files(
     registry: &AgentToolRegistry,
     result: &mut GenerationResult,
 ) -> Result<()> {
+    let mut mcp_files_to_write: HashMap<PathBuf, String> = HashMap::new();
+    for agent in agents {
+        if let Some(tool) = registry.get_tool(agent) {
+            if let Some(mcp_gen) = tool.mcp_generator() {
+                let mcp_files = mcp_gen.generate_mcp(current_dir)?;
+                for path in mcp_files.keys() {
+                    result.add_file(agent, path.clone());
+                }
+                mcp_files_to_write.extend(mcp_files);
+            }
+        }
+    }
+
     operations::clean_generated_files(current_dir, agents, registry)?;
 
     if detect_symlink_mode(current_dir) {
@@ -100,18 +113,6 @@ fn generate_files(
         }
     }
 
-    let mut mcp_files_to_write: HashMap<PathBuf, String> = HashMap::new();
-    for agent in agents {
-        if let Some(tool) = registry.get_tool(agent) {
-            if let Some(mcp_gen) = tool.mcp_generator() {
-                let mcp_files = mcp_gen.generate_mcp(current_dir);
-                for path in mcp_files.keys() {
-                    result.add_file(agent, path.clone());
-                }
-                mcp_files_to_write.extend(mcp_files);
-            }
-        }
-    }
     write_directory_files(&mcp_files_to_write)?;
 
     // Generate command symlinks - use command_agents instead of agents
@@ -642,6 +643,7 @@ New body content"#;
         let args = ResolvedGenerateArgs {
             agents: Some(vec![
                 "claude".to_string(),
+                "codex".to_string(),
                 "cursor".to_string(),
                 "roo".to_string(),
             ]),
@@ -657,11 +659,27 @@ New body content"#;
         assert_file_exists(temp_dir.path(), AGENTS_MD_FILENAME); // Roo now uses AGENTS.md
 
         assert_file_exists(temp_dir.path(), ".mcp.json");
+        assert_file_exists(temp_dir.path(), ".codex/config.toml");
         assert_file_exists(temp_dir.path(), ".cursor/mcp.json");
         assert_file_exists(temp_dir.path(), ".roo/mcp.json");
 
         let mcp_content = std::fs::read_to_string(temp_dir.path().join(".mcp.json")).unwrap();
         assert_eq!(mcp_content.trim(), TEST_MCP_CONFIG.trim());
+
+        let codex_mcp_content =
+            std::fs::read_to_string(temp_dir.path().join(".codex/config.toml")).unwrap();
+        let codex_mcp: toml::Value = codex_mcp_content.parse().unwrap();
+        assert_eq!(
+            codex_mcp["mcp_servers"]["test-server"]["command"].as_str(),
+            Some("npx")
+        );
+        assert_eq!(
+            codex_mcp["mcp_servers"]["test-server"]["args"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("-y")
+        );
 
         let cursor_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".cursor/mcp.json")).unwrap();
@@ -670,6 +688,35 @@ New body content"#;
         let roo_mcp_content =
             std::fs::read_to_string(temp_dir.path().join(".roo/mcp.json")).unwrap();
         assert_eq!(roo_mcp_content.trim(), TEST_MCP_CONFIG.trim());
+    }
+
+    #[test]
+    fn test_run_generate_invalid_codex_overlay_preserves_existing_config() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
+        create_file(temp_dir.path(), "ai-rules/codex-config.toml", "model =\n");
+        create_file(
+            temp_dir.path(),
+            ".codex/config.toml",
+            "model = \"existing\"\n",
+        );
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["codex".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: 0,
+        };
+        let result = run_generate(temp_dir.path(), args);
+
+        assert!(result.is_err());
+        assert_file_content(
+            temp_dir.path(),
+            ".codex/config.toml",
+            "model = \"existing\"\n",
+        );
     }
 
     #[test]

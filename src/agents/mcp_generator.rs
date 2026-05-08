@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub trait McpGeneratorTrait {
-    fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String>;
+    fn generate_mcp(&self, current_dir: &Path) -> Result<HashMap<PathBuf, String>>;
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()>;
 
@@ -33,14 +33,14 @@ impl ExternalMcpGenerator {
 }
 
 impl McpGeneratorTrait for ExternalMcpGenerator {
-    fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
+    fn generate_mcp(&self, current_dir: &Path) -> Result<HashMap<PathBuf, String>> {
         let mut files = HashMap::new();
 
-        if let Ok(Some(mcp_content)) = read_mcp_config(current_dir) {
+        if let Some(mcp_content) = read_mcp_config(current_dir)? {
             files.insert(current_dir.join(&self.output_path), mcp_content);
         }
 
-        files
+        Ok(files)
     }
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()> {
@@ -99,7 +99,7 @@ mod tests {
 
         create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
 
-        let files = generator.generate_mcp(temp_dir.path());
+        let files = generator.generate_mcp(temp_dir.path()).unwrap();
 
         assert_eq!(files.len(), 1);
         let expected_path = temp_dir.path().join(".mcp.json");
@@ -111,7 +111,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let generator = ExternalMcpGenerator::new(PathBuf::from(".mcp.json"));
 
-        let files = generator.generate_mcp(temp_dir.path());
+        let files = generator.generate_mcp(temp_dir.path()).unwrap();
 
         assert_eq!(files.len(), 0);
     }

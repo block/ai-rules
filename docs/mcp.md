@@ -35,6 +35,7 @@ See the [Supported Agents](agents.md) table for which agents support MCP and the
 | Agent | MCP File Location |
 |-------|-------------------|
 | Claude Code | `.mcp.json` |
+| Codex | `.codex/config.toml` |
 | Cursor | `.cursor/mcp.json` |
 | Firebender | `firebender.json` (generated when MCP and/or overlay config exists) |
 | Gemini | Embedded in `.gemini/settings.json` |

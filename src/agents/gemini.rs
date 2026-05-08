@@ -98,15 +98,15 @@ impl AgentRuleGenerator for GeminiGenerator {
 struct GeminiMcpGenerator;
 
 impl McpGeneratorTrait for GeminiMcpGenerator {
-    fn generate_mcp(&self, current_dir: &Path) -> HashMap<PathBuf, String> {
+    fn generate_mcp(&self, current_dir: &Path) -> Result<HashMap<PathBuf, String>> {
         let mut files = HashMap::new();
 
         // 1. Read source MCP config (ai-rules/mcp.json)
-        let source_mcp_content = match read_mcp_config(current_dir) {
-            Ok(Some(c)) => c,
-            _ => return files, // No source config, nothing to generate
+        let source_mcp_content = match read_mcp_config(current_dir)? {
+            Some(c) => c,
+            None => return Ok(files), // No source config, nothing to generate
         };
-        let source_json: Value = serde_json::from_str(&source_mcp_content).unwrap_or(json!({}));
+        let source_json: Value = serde_json::from_str(&source_mcp_content)?;
         let mut source_servers = source_json.get("mcpServers").unwrap_or(&json!({})).clone();
 
         // Apply Gemini-specific transformations
@@ -148,11 +148,10 @@ impl McpGeneratorTrait for GeminiMcpGenerator {
 
         // 4. Format and return
         // Use pretty print
-        if let Ok(content) = serde_json::to_string_pretty(&target_json) {
-            files.insert(target_path, content);
-        }
+        let content = serde_json::to_string_pretty(&target_json)?;
+        files.insert(target_path, content);
 
-        files
+        Ok(files)
     }
 
     fn clean_mcp(&self, current_dir: &Path) -> Result<()> {
@@ -419,7 +418,7 @@ mod tests {
         create_file(temp_dir.path(), ".gemini/settings.json", existing_target);
 
         // Generate MCP
-        let files = generator.generate_mcp(temp_dir.path());
+        let files = generator.generate_mcp(temp_dir.path()).unwrap();
 
         // Verify the result - get the first (and only) file
         assert_eq!(files.len(), 1);
@@ -454,10 +453,8 @@ mod tests {
         // Create invalid JSON source
         create_file(temp_dir.path(), "ai-rules/mcp.json", "{ invalid json }");
 
-        // Should return empty map - read_mcp_config returns Err for invalid JSON,
-        // which is caught by the wildcard pattern and returns empty files
-        let files = generator.generate_mcp(temp_dir.path());
-        assert!(files.is_empty());
+        let result = generator.generate_mcp(temp_dir.path());
+        assert!(result.is_err());
     }
 
     #[test]

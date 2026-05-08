@@ -666,6 +666,70 @@ Test rule content"#;
         assert!(status.agent_statuses["claude"]);
     }
 
+    #[test]
+    fn test_status_with_codex_overlay_tracks_overlay_changes() {
+        let temp_dir = TempDir::new().unwrap();
+
+        create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+        create_file(temp_dir.path(), "ai-rules/mcp.json", TEST_MCP_CONFIG);
+        create_file(
+            temp_dir.path(),
+            "ai-rules/codex-config.toml",
+            r#"model = "gpt-5.2"
+
+[mcp_servers."test-server"]
+command = "custom"
+"#,
+        );
+
+        let generate_result = crate::commands::generate::run_generate(
+            temp_dir.path(),
+            crate::cli::ResolvedGenerateArgs {
+                agents: Some(vec!["codex".to_string()]),
+                command_agents: None,
+                gitignore: false,
+                nested_depth: NESTED_DEPTH,
+            },
+        );
+        assert!(generate_result.is_ok());
+
+        let result = check_project_status(
+            temp_dir.path(),
+            ResolvedStatusArgs {
+                agents: Some(vec!["codex".to_string()]),
+                command_agents: None,
+                nested_depth: NESTED_DEPTH,
+            },
+        )
+        .unwrap();
+        assert!(result.has_ai_rules);
+        assert!(!result.body_files_out_of_sync);
+        assert!(result.agent_statuses["codex"]);
+
+        create_file(
+            temp_dir.path(),
+            "ai-rules/codex-config.toml",
+            r#"model = "gpt-5.4"
+
+[mcp_servers."test-server"]
+command = "custom"
+"#,
+        );
+
+        let result = check_project_status(
+            temp_dir.path(),
+            ResolvedStatusArgs {
+                agents: Some(vec!["codex".to_string()]),
+                command_agents: None,
+                nested_depth: NESTED_DEPTH,
+            },
+        )
+        .unwrap();
+        assert!(result.has_ai_rules);
+        assert!(!result.body_files_out_of_sync);
+        assert!(!result.agent_statuses["codex"]);
+    }
+
     const TEST_COMMAND_CONTENT: &str = r#"---
 description: Test command
 ---

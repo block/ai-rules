@@ -17,6 +17,7 @@ monorepo/
 │   │       └── SKILL.md
 │   ├── general.md                # Repository-wide rules
 │   ├── ai-rules-config.yaml      # Configuration
+│   ├── codex-config.toml         # Codex config overlay (optional)
 │   └── mcp.json                  # MCP server configuration
 │
 ├── frontend/                     # Frontend application
@@ -44,6 +45,8 @@ monorepo/
 │   ├── commands/                 # Firebender commands (generated symlinks)
 ├── .agents/
 │   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
+├── .codex/
+│   └── config.toml               # Codex config (generated when mcp.json or codex-config.toml exists)
 ├── .mcp.json                     # Root MCP config (generated)
 └── firebender.json               # Root Firebender supplemental config (generated when needed)
 ```
@@ -61,6 +64,7 @@ project/
 │   ├── skills/                   # User-defined skills (optional)
 │   │   └── debugging/
 │   │       └── SKILL.md
+│   ├── codex-config.toml         # Codex config overlay (optional)
 │   └── mcp.json                  # MCP config (optional)
 │
 ├── CLAUDE.md                     # Symlink -> ai-rules/AGENTS.md
@@ -70,6 +74,8 @@ project/
 │   ├── commands/                 # Firebender commands (generated symlinks)
 ├── .agents/
 │   └── skills/                   # Shared AMP/Firebender skills (generated symlinks)
+├── .codex/
+│   └── config.toml               # Codex config (if mcp.json or codex-config.toml exists)
 ├── firebender.json               # Supplemental Firebender config (if mcp.json or overlay exists)
 ├── .clinerules/
 │   └── AGENTS.md                 # Symlink -> ../ai-rules/AGENTS.md
