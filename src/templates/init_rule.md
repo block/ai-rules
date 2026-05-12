@@ -31,19 +31,41 @@ Step 1: **Explore structure and documentation**
   - Read README.md and CONTRIBUTING.md if present (full contents)
 
 Step 2: **Read build/dependency files completely**
-  - Find: package.json, Cargo.toml, go.mod, pyproject.toml, Makefile, 
-    Justfile, Taskfile, build.gradle, pom.xml, composer.json, mix.exs, etc.
+  - Find: package.json, Cargo.toml, go.mod, pyproject.toml, Gemfile, gems.rb,
+    Makefile, Justfile, Taskfile, build.gradle, pom.xml, composer.json, mix.exs, etc.
   - Read the FULL contents of these files:
     - package.json: entire "scripts" section and key dependencies
+    - Gemfile/gems.rb: `ruby ""` directive, source URL, key gem groups
     - Makefile/Justfile/Taskfile: ALL target/task definitions
     - Other manifest files: scripts, dependencies, configuration sections
 
-Step 3: **Read CI/automation files completely**
+Step 3: **Detect runtime version pinning**
+  - Find: .ruby-version, .nvmrc, .node-version, .python-version, .tool-versions,
+    rust-toolchain.toml, mise.toml
+  - Read each file's contents — they pin the exact runtime version the repo expects
+  - Cross-reference with the build/dependency files (e.g. Gemfile's `ruby ""`
+    line, package.json's `engines` field, pyproject.toml's `requires-python`)
+  - If ANY pinning file exists, the generated rule file MUST include a
+    "Runtime / Toolchain" section telling the agent to activate the pinned
+    version BEFORE running language-specific commands (bundler, rspec, npm,
+    pytest, etc.). Pick the version manager the user actually has on $PATH —
+    detect with `command -v`. Recommended defaults:
+      - .ruby-version          → rvm (fallback: rbenv, chruby, asdf, mise)
+      - .nvmrc / .node-version → nvm (fallback: fnm, volta, asdf, mise)
+      - .python-version        → pyenv (fallback: asdf, mise)
+      - .tool-versions         → asdf or mise (multi-language)
+      - rust-toolchain.toml    → rustup (auto-applied in-repo, no action)
+  - Concrete invocation examples:
+      - Ruby (rvm): `rvm use $(cat .ruby-version) || rvm install $(cat .ruby-version)`
+      - Node (nvm): `nvm use` (reads .nvmrc automatically)
+      - Python (pyenv): `pyenv shell $(cat .python-version)`
+
+Step 4: **Read CI/automation files completely**
   - Read full contents of .github/workflows/*, .gitlab-ci.yml, .buildkite/*.yml
   - Extract ALL commands from build, test, lint, and deploy jobs
   - These commands are the authoritative source of truth
 
-Step 4: **Sample source code extensively** (minimum 5-8 files)
+Step 5: **Sample source code extensively** (minimum 5-8 files)
   - Read multiple files from different modules/packages/directories
   - Include both main source code and test files
   - Analyze consistently across files:
@@ -52,12 +74,12 @@ Step 4: **Sample source code extensively** (minimum 5-8 files)
     - Import/module patterns
     - Code organization patterns
 
-Step 5: **Check commit history for conventions**
+Step 6: **Check commit history for conventions**
   - Review recent commit messages (last 15-20 commits)
   - Use `git log --oneline -20` or examine commit history
   - Identify patterns: Conventional Commits, ticket references, format standards
 
-Step 6: **Read .gitignore completely**
+Step 7: **Read .gitignore completely**
   - Read full .gitignore file
   - Identify all generated/build directories (dist/, build/, gen/, coverage/, etc.)
 
@@ -92,6 +114,16 @@ State coverage requirements or test naming conventions if present.
 Summarize commit message conventions (check Git history for patterns).
 Outline PR requirements: descriptions, linked issues, screenshots, review process.
 Note if Conventional Commits or other standards are used.
+
+**## Runtime / Toolchain** (REQUIRED if a runtime pinning file was found in Step 3)
+State the pinned language version (read from .ruby-version, .nvmrc, etc.) and
+the exact command the agent should run to activate it BEFORE any language-
+specific build/test commands. Recommend the manager the user has installed
+(check $PATH); fall back to Block's defaults for the language (rvm for Ruby,
+nvm for Node, pyenv for Python). Example for a Ruby repo with rvm:
+`rvm use $(cat .ruby-version) || rvm install $(cat .ruby-version)`.
+The agent must run this BEFORE `bundle install`, `rspec`, or `rubocop` —
+otherwise it will use the system Ruby and hit syntax or gem-resolution errors.
 
 **(Optional sections)** - Add if relevant:
 - Security & Configuration Tips
