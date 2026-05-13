@@ -18,6 +18,8 @@ fn test_generate_args_with_config_cli_priority() {
         gitignore: true,
         no_gitignore: false,
         nested_depth: Some(2),
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -42,6 +44,8 @@ fn test_generate_args_with_config_uses_config_when_cli_missing() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -58,6 +62,8 @@ fn test_generate_args_with_config_defaults() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(None);
@@ -82,6 +88,8 @@ fn test_generate_args_with_config_partial_config() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -202,6 +210,8 @@ fn test_generate_args_backward_compat_no_gitignore_config() {
         gitignore: false,
         no_gitignore: false,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -224,6 +234,8 @@ fn test_generate_args_backward_compat_no_gitignore_cli() {
         gitignore: false,
         no_gitignore: true,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));
@@ -246,6 +258,8 @@ fn test_generate_args_new_gitignore_flag_overrides_old() {
         gitignore: true,
         no_gitignore: true,
         nested_depth: None,
+        source_dir: None,
+        target_dir: None,
     };
 
     let resolved = args.with_config(Some(&config));

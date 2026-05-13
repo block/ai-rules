@@ -363,11 +363,14 @@ Test rule content"#;
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -447,11 +450,14 @@ Test rule content"#;
 
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: None,
                 command_agents: None,
                 gitignore: false,
                 nested_depth,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -492,11 +498,14 @@ Test rule content"#;
 
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: None,
                 command_agents: None,
                 gitignore: false,
                 nested_depth: 1,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -526,11 +535,14 @@ Test rule content"#;
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -569,11 +581,14 @@ Test rule content"#;
         // Generate agent files in sync (body files + inlined file + symlink)
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -642,11 +657,14 @@ Test rule content"#;
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -684,11 +702,14 @@ command = "custom"
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["codex".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -747,11 +768,14 @@ Test command body"#;
         // Generate agent files in sync (body files + inlined file + symlink + commands)
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -806,11 +830,14 @@ Test command body"#;
         // Generate agent files but without commands by generating, then removing commands
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -852,11 +879,14 @@ Test command body"#;
         // Generate with agents=["amp"] and command_agents=["claude", "amp"]
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["amp".to_string()]),
                 command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -905,11 +935,14 @@ Test command body"#;
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -945,11 +978,14 @@ Test command body"#;
         // Generate agent files
         crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         )
         .unwrap();
@@ -993,11 +1029,14 @@ Test command body"#;
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -1027,11 +1066,14 @@ Test command body"#;
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -1066,11 +1108,14 @@ Test command body"#;
 
         let generate_result = crate::commands::generate::run_generate(
             temp_dir.path(),
+            temp_dir.path(),
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());

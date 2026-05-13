@@ -157,11 +157,14 @@ Test rule content"#;
 
         let generate_result = crate::commands::generate::run_generate(
             project_path,
+            project_path,
             crate::cli::ResolvedGenerateArgs {
                 agents: None,
                 command_agents: None,
                 gitignore: false,
                 nested_depth: 2,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -202,6 +205,7 @@ Test rule content"#;
 
         let generate_result = crate::commands::generate::run_generate(
             project_path,
+            project_path,
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec![
                     "claude".to_string(),
@@ -212,6 +216,8 @@ Test rule content"#;
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -329,11 +335,14 @@ Test rule content"#;
         // Generate skill symlinks
         let generate_result = crate::commands::generate::run_generate(
             project_path,
+            project_path,
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());
@@ -375,11 +384,14 @@ Test rule content"#;
         // Generate skill symlinks
         let generate_result = crate::commands::generate::run_generate(
             project_path,
+            project_path,
             crate::cli::ResolvedGenerateArgs {
                 agents: Some(vec!["claude".to_string()]),
                 command_agents: None,
                 gitignore: false,
                 nested_depth: CLEAN_NESTED_DEPTH,
+                source_dir: None,
+                target_dir: None,
             },
         );
         assert!(generate_result.is_ok());

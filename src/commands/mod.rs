@@ -71,8 +71,10 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
+            source_dir: None,
+            target_dir: None,
         };
-        let generate_result = run_generate(project_path, generate_args);
+        let generate_result = run_generate(project_path, project_path, generate_args);
         if let Err(e) = &generate_result {
             panic!("Generate failed with error: {e}");
         }
@@ -152,8 +154,10 @@ mod tests {
             command_agents: None,
             gitignore: true,
             nested_depth,
+            source_dir: None,
+            target_dir: None,
         };
-        let generate_result = run_generate(project_path, generate_args);
+        let generate_result = run_generate(project_path, project_path, generate_args);
         assert!(generate_result.is_ok());
 
         // Verify all agents created symlinks pointing to the correct target

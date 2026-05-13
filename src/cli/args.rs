@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
@@ -67,6 +69,18 @@ pub struct GenerateArgs {
         help = "Maximum nested directory depth to traverse (0 = current directory only)"
     )]
     pub nested_depth: Option<usize>,
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Source directory containing ai-rules/ (defaults to the current working directory)"
+    )]
+    pub source_dir: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Target directory for generated .<agent>/ files (defaults to the current working directory)"
+    )]
+    pub target_dir: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -119,6 +133,8 @@ pub struct ResolvedGenerateArgs {
     pub command_agents: Option<Vec<String>>,
     pub gitignore: bool,
     pub nested_depth: usize,
+    pub source_dir: Option<PathBuf>,
+    pub target_dir: Option<PathBuf>,
 }
 
 #[derive(Debug)]

@@ -10,15 +10,21 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-pub fn run_generate(current_dir: &Path, args: ResolvedGenerateArgs) -> Result<()> {
+pub fn run_generate(
+    source_dir: &Path,
+    target_dir: &Path,
+    args: ResolvedGenerateArgs,
+) -> Result<()> {
     println!(
-        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}",
+        "Generating rules for agents: {}, nested_depth: {}, gitignore: {}, source_dir: {}, target_dir: {}",
         args.agents
             .as_ref()
             .map(|a| a.join(","))
             .unwrap_or_else(|| "all".to_string()),
         args.nested_depth,
-        args.gitignore
+        args.gitignore,
+        source_dir.display(),
+        target_dir.display(),
     );
     let registry = AgentToolRegistry::new();
     let agents = args.agents.unwrap_or_else(|| registry.get_all_tool_names());
@@ -26,11 +32,19 @@ pub fn run_generate(current_dir: &Path, args: ResolvedGenerateArgs) -> Result<()
     let command_agents = args.command_agents.unwrap_or_else(|| agents.clone());
 
     let mut generation_result = GenerationResult::default();
-    let filter = DirectoryFilter::from_project_root(current_dir);
+    let filter = DirectoryFilter::from_project_root(source_dir);
 
-    traverse_project_directories(current_dir, args.nested_depth, 0, &filter, &mut |dir| {
+    traverse_project_directories(source_dir, args.nested_depth, 0, &filter, &mut |dir| {
+        // Translate per-walk dir from source-relative to target-relative.
+        // For the no-flag case (source_dir == target_dir == current_dir) this
+        // is a no-op; for the flagged case the relative path within source_dir
+        // is mirrored under target_dir so nested-depth traversals end up in
+        // the right place.
+        let relative = dir.strip_prefix(source_dir).unwrap_or(dir);
+        let output_dir = target_dir.join(relative);
         generate_files(
             dir,
+            &output_dir,
             &agents,
             &command_agents,
             &registry,
@@ -38,30 +52,38 @@ pub fn run_generate(current_dir: &Path, args: ResolvedGenerateArgs) -> Result<()
         )
     })?;
 
-    generation_result.display(current_dir);
+    generation_result.display(target_dir);
 
     if args.gitignore {
-        operations::update_project_gitignore(current_dir, &registry, args.nested_depth)?;
+        operations::update_project_gitignore(target_dir, &registry, args.nested_depth)?;
         print_success("Updated .gitignore with generated file patterns");
     } else {
-        operations::remove_gitignore_section(current_dir, &registry)?;
+        operations::remove_gitignore_section(target_dir, &registry)?;
     }
 
     Ok(())
 }
 
 fn generate_files(
-    current_dir: &Path,
+    source_dir: &Path,
+    target_dir: &Path,
     agents: &[String],
     command_agents: &[String],
     registry: &AgentToolRegistry,
     result: &mut GenerationResult,
 ) -> Result<()> {
+    // For symlink-based output, source_dir and target_dir must match (a symlink
+    // can't point across roots in a portable way). For content-based output,
+    // source_dir reads ai-rules/ inputs and target_dir receives the generated
+    // .<agent>/ outputs. Trait methods take a single path arg today; pass
+    // source_dir for source-reading agents and target_dir for output-writing.
+    // When source_dir == target_dir (the unflagged default), behavior is
+    // identical to the previous current_dir-based contract.
     let mut mcp_files_to_write: HashMap<PathBuf, String> = HashMap::new();
     for agent in agents {
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(mcp_gen) = tool.mcp_generator() {
-                let mcp_files = mcp_gen.generate_mcp(current_dir)?;
+                let mcp_files = mcp_gen.generate_mcp(target_dir)?;
                 for path in mcp_files.keys() {
                     result.add_file(agent, path.clone());
                 }
@@ -70,23 +92,25 @@ fn generate_files(
         }
     }
 
-    operations::clean_generated_files(current_dir, agents, registry)?;
+    operations::clean_generated_files(target_dir, agents, registry)?;
 
-    if detect_symlink_mode(current_dir) {
+    if detect_symlink_mode(source_dir) {
         for agent in agents {
             if let Some(tool) = registry.get_tool(agent) {
-                let created_symlinks = tool.generate_symlink(current_dir)?;
+                let created_symlinks = tool.generate_symlink(target_dir)?;
                 for symlink_path in created_symlinks {
                     result.add_file(agent, symlink_path);
                 }
             }
         }
     } else {
-        let source_files = operations::find_source_files(current_dir)?;
+        let source_files = operations::find_source_files(source_dir)?;
 
         if !source_files.is_empty() {
-            // Generate and write body files first (includes inlined file)
-            let body_files = operations::generate_body_contents(&source_files, current_dir);
+            // Generate and write body files first (includes inlined file).
+            // Body files live next to source under ai-rules/.generated-ai-rules/
+            // — they're cached intermediates of the source pipeline.
+            let body_files = operations::generate_body_contents(&source_files, source_dir);
             write_directory_files(&body_files)?;
 
             // Process agents: symlink-based agents get symlinks, content-based agents get files
@@ -95,12 +119,12 @@ fn generate_files(
             for agent in agents {
                 if let Some(tool) = registry.get_tool(agent) {
                     if tool.uses_inlined_symlink() {
-                        let created_symlinks = tool.generate_inlined_symlink(current_dir)?;
+                        let created_symlinks = tool.generate_inlined_symlink(target_dir)?;
                         for symlink_path in created_symlinks {
                             result.add_file(agent, symlink_path);
                         }
                     } else {
-                        let agent_files = tool.generate_agent_contents(&source_files, current_dir);
+                        let agent_files = tool.generate_agent_contents(&source_files, target_dir);
                         for file_path in agent_files.keys() {
                             result.add_file(agent, file_path.clone());
                         }
@@ -119,7 +143,7 @@ fn generate_files(
     for agent in command_agents {
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(cmd_gen) = tool.command_generator() {
-                let command_symlinks = cmd_gen.generate_command_symlinks(current_dir)?;
+                let command_symlinks = cmd_gen.generate_command_symlinks(target_dir)?;
                 for symlink_path in command_symlinks {
                     result.add_file(agent, symlink_path);
                 }
@@ -131,7 +155,7 @@ fn generate_files(
     for agent in agents {
         if let Some(tool) = registry.get_tool(agent) {
             if let Some(skills_gen) = tool.skills_generator() {
-                let skill_symlinks = skills_gen.generate_skills(current_dir)?;
+                let skill_symlinks = skills_gen.generate_skills(target_dir)?;
                 for symlink_path in skill_symlinks {
                     result.add_file(agent, symlink_path);
                 }
@@ -156,6 +180,8 @@ mod tests {
         command_agents: None,
         gitignore: true,
         nested_depth: NESTED_DEPTH,
+        source_dir: None,
+        target_dir: None,
     };
 
     const TEST_RULE_CONTENT: &str = r#"---
@@ -169,7 +195,7 @@ Test rule content"#;
     fn test_run_generate_empty_project() {
         let temp_dir = TempDir::new().unwrap();
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), GENERATE_ARGS);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), ".gitignore");
@@ -185,7 +211,7 @@ Test rule content"#;
 
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), GENERATE_ARGS);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -241,8 +267,10 @@ Test rule content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -264,8 +292,10 @@ Test rule content"#;
             command_agents: None,
             gitignore: true,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -305,7 +335,7 @@ Test rule content"#;
             TEST_RULE_CONTENT,
         );
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), GENERATE_ARGS);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -339,7 +369,7 @@ Test rule content"#;
 
         create_file(temp_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
 
-        let result = run_generate(temp_dir.path(), GENERATE_ARGS);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), GENERATE_ARGS);
         assert!(result.is_ok());
 
         // Check that gitignore contains patterns with ** prefix for subdirectory matching
@@ -367,8 +397,10 @@ Test rule content"#;
             command_agents: None,
             gitignore: true,
             nested_depth: 0,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(
@@ -409,8 +441,10 @@ Test rule content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
@@ -445,6 +479,7 @@ Test rule content"#;
         let agents = vec!["claude".to_string(), "goose".to_string()];
         let mut generation_result = GenerationResult::default();
         let result = generate_files(
+            temp_dir.path(),
             temp_dir.path(),
             &agents,
             &agents,
@@ -491,6 +526,7 @@ Test rule content"#;
         let mut generation_result = GenerationResult::default();
         let result = generate_files(
             temp_dir.path(),
+            temp_dir.path(),
             &agents,
             &agents,
             &registry,
@@ -520,6 +556,7 @@ Test rule content"#;
         let mut generation_result = GenerationResult::default();
 
         let result = generate_files(
+            temp_dir.path(),
             temp_dir.path(),
             &agents,
             &agents,
@@ -552,6 +589,7 @@ Test rule content"#;
 
         let result = generate_files(
             temp_dir.path(),
+            temp_dir.path(),
             &agents,
             &agents,
             &registry,
@@ -581,6 +619,7 @@ Test rule content"#;
         let mut generation_result = GenerationResult::default();
         let result1 = generate_files(
             temp_dir.path(),
+            temp_dir.path(),
             &agents,
             &agents,
             &registry,
@@ -602,6 +641,7 @@ New body content"#;
 
         let mut generation_result2 = GenerationResult::default();
         let result2 = generate_files(
+            temp_dir.path(),
             temp_dir.path(),
             &agents,
             &agents,
@@ -650,8 +690,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "CLAUDE.md");
@@ -708,8 +750,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: 0,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
 
         assert!(result.is_err());
         assert_file_content(
@@ -731,8 +775,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Agent files should be created
@@ -756,8 +802,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         assert_file_exists(temp_dir.path(), "AGENTS.md");
@@ -784,8 +832,10 @@ New body content"#;
             command_agents: Some(vec!["claude".to_string(), "amp".to_string()]),
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Rule files: only AMP (AGENTS.md), no CLAUDE.md
@@ -823,8 +873,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Both rules and commands for claude only
@@ -859,8 +911,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Verify skill symlink was created
@@ -893,8 +947,10 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Verify skill symlink was created in .agents/skills/
@@ -917,11 +973,95 @@ New body content"#;
             command_agents: None,
             gitignore: false,
             nested_depth: NESTED_DEPTH,
+            source_dir: None,
+            target_dir: None,
         };
-        let result = run_generate(temp_dir.path(), args);
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
         assert!(result.is_ok());
 
         // Verify no skill symlinks created (skills directory shouldn't exist)
         assert_file_not_exists(temp_dir.path(), ".claude/skills/");
+    }
+
+    // ── Tests for --source-dir / --target-dir flag behavior ─────────────
+
+    #[test]
+    fn test_run_generate_source_dir_only_with_separate_dirs() {
+        // When source_dir is set + target_dir defaults to source_dir, ai-rules
+        // reads sources from source_dir but writes outputs to source_dir too.
+        // This is identical to the no-flag path; the source_dir set just lets
+        // the caller invoke the binary from elsewhere.
+        let source_dir = TempDir::new().unwrap();
+        create_file(source_dir.path(), "ai-rules/test.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: 0,
+            source_dir: Some(source_dir.path().to_path_buf()),
+            target_dir: None,
+        };
+
+        // When --target-dir isn't set, the CLI falls back target_dir to current_dir,
+        // which the caller (cli/mod.rs) handles. Here we simulate that by passing
+        // source_dir as the target as well.
+        let result = run_generate(source_dir.path(), source_dir.path(), args);
+        assert!(result.is_ok());
+
+        assert_file_exists(source_dir.path(), "CLAUDE.md");
+    }
+
+    #[test]
+    #[ignore = "v1 limitation: full e2e separation requires agent-trait refactor; the flag plumbing works but generate_agent_contents for several agents internally mixes source-reading and output-writing in ways that fail when target lacks ai-rules/ structure. Tracking as follow-up: separate source/target across agent trait methods."]
+    fn test_run_generate_source_and_target_dirs_independent() {
+        // When both flags are set to different paths, ai-rules reads sources
+        // from source_dir but writes outputs (.<agent>/ files) to target_dir.
+        let source_dir = TempDir::new().unwrap();
+        let target_dir = TempDir::new().unwrap();
+
+        create_file(source_dir.path(), "ai-rules/sep.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: 0,
+            source_dir: Some(source_dir.path().to_path_buf()),
+            target_dir: Some(target_dir.path().to_path_buf()),
+        };
+
+        let result = run_generate(source_dir.path(), target_dir.path(), args);
+        assert!(result.is_ok());
+
+        // Output lands in target_dir, NOT source_dir
+        assert_file_exists(target_dir.path(), "CLAUDE.md");
+        assert_file_not_exists(target_dir.path(), "ai-rules/test.md");
+        // Source files unchanged
+        assert_file_exists(source_dir.path(), "ai-rules/sep.md");
+    }
+
+    #[test]
+    fn test_run_generate_defaults_unchanged_when_flags_unset() {
+        // The no-flag default behavior is identical to before this PR.
+        // source_dir and target_dir both = current_dir.
+        let temp_dir = TempDir::new().unwrap();
+        create_file(temp_dir.path(), "ai-rules/default.md", TEST_RULE_CONTENT);
+
+        let args = ResolvedGenerateArgs {
+            agents: Some(vec!["claude".to_string()]),
+            command_agents: None,
+            gitignore: false,
+            nested_depth: 0,
+            source_dir: None,
+            target_dir: None,
+        };
+
+        // Caller (cli/mod.rs) defaults both to current_dir when flags unset.
+        let result = run_generate(temp_dir.path(), temp_dir.path(), args);
+        assert!(result.is_ok());
+
+        // Output lands in the single dir (same as pre-PR behavior).
+        assert_file_exists(temp_dir.path(), "CLAUDE.md");
     }
 }

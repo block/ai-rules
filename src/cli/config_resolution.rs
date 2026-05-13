@@ -26,6 +26,8 @@ impl GenerateArgs {
         let agents = resolve_agents(self.agents, config);
         let command_agents = resolve_command_agents(config);
         let nested_depth = resolve_nested_depth(self.nested_depth, config);
+        let source_dir = self.source_dir;
+        let target_dir = self.target_dir;
 
         // Handle gitignore resolution with backward compatibility
         // Priority: CLI flags > Config file > Default (false)
@@ -56,6 +58,8 @@ impl GenerateArgs {
             command_agents,
             gitignore,
             nested_depth: nested_depth.unwrap_or(0),
+            source_dir,
+            target_dir,
         }
     }
 }

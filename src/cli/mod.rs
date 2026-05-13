@@ -28,7 +28,18 @@ pub fn run_cli() -> anyhow::Result<()> {
         Some(Commands::Init(init_args)) => run_init(&current_dir, init_args),
         Some(Commands::Generate(args)) => {
             let final_args = args.with_config(config.as_ref());
-            run_generate(&current_dir, final_args)
+            // --source-dir / --target-dir override current_dir for
+            // source-reading and output-writing respectively. Either falls
+            // back to current_dir when not set.
+            let source_dir = final_args
+                .source_dir
+                .clone()
+                .unwrap_or_else(|| current_dir.clone());
+            let target_dir = final_args
+                .target_dir
+                .clone()
+                .unwrap_or_else(|| current_dir.clone());
+            run_generate(&source_dir, &target_dir, final_args)
         }
         Some(Commands::Status(args)) => {
             let final_args = args.with_config(config.as_ref());
